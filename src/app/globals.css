@@ -776,6 +776,127 @@ button {
   font-style: normal;
 }
 
+.info-dialog-trigger {
+  width: 18px;
+  height: 18px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #98a2b3;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  transition: color 160ms ease, background 160ms ease;
+}
+
+.info-dialog-trigger:hover {
+  color: var(--green);
+  background: rgba(15, 90, 53, 0.08);
+}
+
+.info-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 140;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.42);
+  backdrop-filter: blur(10px);
+}
+
+.info-dialog-card {
+  width: min(560px, 100%);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 30px 90px rgba(15, 23, 42, 0.24);
+  padding: 22px;
+  display: grid;
+  gap: 18px;
+}
+
+.info-dialog-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.info-dialog-header span {
+  width: fit-content;
+  min-height: 28px;
+  border-radius: 999px;
+  background: var(--green-3);
+  color: var(--green);
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 900;
+  margin-bottom: 10px;
+}
+
+.info-dialog-header h2 {
+  margin: 0;
+  color: #101828;
+  font-size: 24px;
+  line-height: 1.15;
+}
+
+.info-dialog-header button {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  color: #344054;
+  display: grid;
+  place-items: center;
+}
+
+.info-dialog-body {
+  display: grid;
+  gap: 18px;
+}
+
+.info-dialog-body p {
+  margin: 0;
+  color: #475467;
+  line-height: 1.6;
+}
+
+.info-dialog-points {
+  display: grid;
+  gap: 10px;
+}
+
+.info-dialog-points div {
+  min-height: 56px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfb;
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 0 14px;
+}
+
+.info-dialog-points i {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #2fb47c, #0f5a35);
+}
+
+.info-dialog-points span {
+  color: #344054;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
 .sparkline {
   width: 82px;
   height: 54px;

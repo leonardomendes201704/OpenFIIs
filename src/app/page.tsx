@@ -19,7 +19,6 @@ import { motion } from "framer-motion";
 import {
   BarChart3,
   ChevronDown,
-  Info,
   MoreVertical,
   Package,
   Percent,
@@ -28,6 +27,7 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { ChartFrame } from "@/components/chart-frame";
+import { InfoDialogButton } from "@/components/info-dialog-button";
 import { buildProjection, ProjectionScenario } from "@/lib/projections";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
@@ -165,11 +165,17 @@ function MetricCard({
   label,
   value,
   change,
+  infoBullets,
+  infoSummary,
+  infoTitle,
   sparkData,
   sparkKey
 }: {
   change: string;
   icon: typeof Wallet;
+  infoBullets: string[];
+  infoSummary: string;
+  infoTitle: string;
   label: string;
   sparkData: number[];
   sparkKey: "growth" | "income" | "wallet" | "yield";
@@ -188,7 +194,12 @@ function MetricCard({
       <div className="metric-copy">
         <span>
           {label}
-          <Info size={14} />
+          <InfoDialogButton
+            bullets={infoBullets}
+            label={`Entender ${label}`}
+            summary={infoSummary}
+            title={infoTitle}
+          />
         </span>
         <strong>{value}</strong>
         <small>{change} <em>no período</em></small>
@@ -451,6 +462,13 @@ export default function DashboardPage() {
         <section className="metrics-grid" aria-label="Resumo da carteira">
           <MetricCard
             icon={Wallet}
+            infoBullets={[
+              "É a soma do valor atual de todas as posições do usuário.",
+              "Cada ativo usa a cotação de mercado mais recente quando disponível.",
+              "Se uma cotação não responder, o sistema usa o preço médio da posição como fallback visual."
+            ]}
+            infoSummary="Patrimônio total representa quanto a carteira vale hoje considerando quantidade em carteira e preço atual de cada FII."
+            infoTitle="Como calculamos o patrimônio total"
             label="Patrimônio total"
             value={money.format(dashboardSummary.patrimony)}
             change={money.format(dashboardSummary.growthValue)}
@@ -459,6 +477,13 @@ export default function DashboardPage() {
           />
           <MetricCard
             icon={Package}
+            infoBullets={[
+              "A base vem do DY anual estimado de cada FII aplicado sobre o preço atual e a quantidade em carteira.",
+              "Essa métrica é uma projeção mensal da carteira atual, não o valor liquidado já recebido no mês.",
+              "A coluna de proventos e a tela de dividendos continuam sendo a referência para recebimentos registrados."
+            ]}
+            infoSummary="Renda mensal mostra uma estimativa do fluxo mensal de dividendos da carteira no momento atual."
+            infoTitle="O que significa a renda mensal"
             label="Renda mensal"
             value={money.format(dashboardSummary.dividendValue)}
             change={`${portfolio.length} ativos com provento estimado`}
@@ -467,6 +492,13 @@ export default function DashboardPage() {
           />
           <MetricCard
             icon={Percent}
+            infoBullets={[
+              "O cálculo usa o peso de cada posição no patrimônio atual da carteira.",
+              "FIIs mais representativos influenciam mais o resultado final.",
+              "Esse número serve como base para as projeções de renda futura."
+            ]}
+            infoSummary="Dividend Yield é a média ponderada do DY estimado dos FIIs da carteira, considerando a participação atual de cada posição."
+            infoTitle="Como funciona o Dividend Yield da carteira"
             label="Dividend Yield"
             value={`${dashboardSummary.weightedDy.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`}
             change="Média da carteira"
@@ -475,6 +507,13 @@ export default function DashboardPage() {
           />
           <MetricCard
             icon={TrendingUp}
+            infoBullets={[
+              "Compara o patrimônio atual com a referência acumulada na série usada no dashboard.",
+              "Ajuda a enxergar quanto a carteira avançou acima da base comparativa exibida no gráfico.",
+              "Não substitui o resultado realizado por ativo na tela Carteira."
+            ]}
+            infoSummary="Valorização resume o ganho agregado mostrado neste recorte do dashboard."
+            infoTitle="Como ler a valorização"
             label="Valorização"
             value={money.format(dashboardSummary.growthValue)}
             change={
@@ -556,7 +595,19 @@ export default function DashboardPage() {
             </div>
 
             <div className="toggle-row">
-              <span>Reinvestir dividendos <Info size={14} /></span>
+              <span>
+                Reinvestir dividendos
+                <InfoDialogButton
+                  bullets={[
+                    "Quando ligado, os dividendos estimados entram novamente na curva de patrimônio.",
+                    "Isso acelera o crescimento da renda futura ao longo dos anos.",
+                    "Quando desligado, a renda cresce mais pelos aportes do que pelo efeito composto."
+                  ]}
+                  label="Entender reinvestimento de dividendos"
+                  summary="Essa opção define se os dividendos projetados devem voltar para a carteira nas simulações do dashboard."
+                  title="Reinvestimento de dividendos"
+                />
+              </span>
               <button className={`toggle ${reinvest ? "on" : ""}`} onClick={() => setReinvest((value) => !value)} aria-pressed={reinvest} type="button">
                 <i />
               </button>
@@ -565,7 +616,19 @@ export default function DashboardPage() {
             <label>Prazo</label>
             <button className="wide-select" type="button">15 anos <ChevronDown size={16} /></button>
 
-            <label>Cenário <Info size={14} /></label>
+            <label>
+              Cenário
+              <InfoDialogButton
+                bullets={[
+                  "Conservador reduz a velocidade de crescimento e usa uma premissa mais cautelosa.",
+                  "Base mantém a leitura equilibrada da carteira atual.",
+                  "Otimista assume evolução mais forte de patrimônio e renda."
+                ]}
+                label="Entender cenários de projeção"
+                summary="Os cenários alteram a premissa usada para projetar crescimento patrimonial e renda futura."
+                title="Como os cenários afetam a projeção"
+              />
+            </label>
             <div className="scenario-tabs">
               {[
                 { label: "Conservador", value: "conservador" },
