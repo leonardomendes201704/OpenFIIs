@@ -26,6 +26,66 @@ import {
   Wallet
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+
+type MarketFii = {
+  dividendYield12m?: number;
+  lastPrice?: number;
+  name?: string;
+  segment?: string;
+  symbol: string;
+};
+
+type Position = {
+  average: number;
+  current: number;
+  dy: number;
+  income: number;
+  name: string;
+  quantity: number;
+  result: number;
+  segment: string;
+  ticker: string;
+};
+
+type EquityPoint = {
+  cdi: number;
+  month: string;
+  patrimonio: number;
+};
+
+type DividendPoint = {
+  month: string;
+  value: number;
+};
+
+type AllocationPoint = {
+  amount: number;
+  color: string;
+  name: string;
+  value: number;
+};
+
+type PortfolioRow = {
+  allocation: string;
+  average: string;
+  bar: number;
+  change: string;
+  current: string;
+  income: string;
+  name: string;
+  perShare: string;
+  quantity: string;
+  ticker: string;
+};
+
+type TransactionRow = {
+  gross_amount: number;
+  occurred_at: string;
+  ticker: string;
+  type: string;
+  unit_price: number;
+};
 
 const money = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -38,94 +98,7 @@ const compactMoney = new Intl.NumberFormat("pt-BR", {
   maximumFractionDigits: 0
 });
 
-const equityData = [
-  { month: "Dez/23", patrimonio: 89000, cdi: 82000 },
-  { month: "", patrimonio: 112000, cdi: 87000 },
-  { month: "Jan/24", patrimonio: 128000, cdi: 92000 },
-  { month: "", patrimonio: 151000, cdi: 97500 },
-  { month: "Fev/24", patrimonio: 167000, cdi: 103000 },
-  { month: "", patrimonio: 183000, cdi: 109000 },
-  { month: "Mar/24", patrimonio: 193500, cdi: 116000 },
-  { month: "", patrimonio: 205000, cdi: 122500 },
-  { month: "Abr/24", patrimonio: 198000, cdi: 130000 },
-  { month: "", patrimonio: 229000, cdi: 137000 },
-  { month: "Mai/24", patrimonio: 241000, cdi: 145000 },
-  { month: "", patrimonio: 284531, cdi: 153000 }
-];
-
-const dividendData = [
-  { month: "Jun/23", value: 1600 },
-  { month: "Jul/23", value: 1880 },
-  { month: "Ago/23", value: 1810 },
-  { month: "Set/23", value: 1720 },
-  { month: "Out/23", value: 2350 },
-  { month: "Nov/23", value: 2050 },
-  { month: "Dez/23", value: 2420 },
-  { month: "Jan/24", value: 2090 },
-  { month: "Fev/24", value: 2320 },
-  { month: "Mar/24", value: 1990 },
-  { month: "Abr/24", value: 2460 },
-  { month: "Mai/24", value: 2540 }
-];
-
-const allocationData = [
-  { name: "Logística", value: 38.4, amount: 95353.68, color: "#0f5a35" },
-  { name: "Shoppings", value: 22.7, amount: 56360.12, color: "#2fb47c" },
-  { name: "Papel", value: 16.8, amount: 41799.2, color: "#f5aa2f" },
-  { name: "Lajes Corporativas", value: 9.4, amount: 23333.45, color: "#9aa1a5" },
-  { name: "Outros", value: 12.7, amount: 31653.9, color: "#d7dadd" }
-];
-
-const portfolio = [
-  {
-    ticker: "HGLG11",
-    name: "CSHG Logística",
-    quantity: "1.250",
-    average: "R$ 160,23",
-    current: "R$ 175,40",
-    change: "+9,46%",
-    income: "R$ 1.093,75",
-    perShare: "R$ 0,8750/cota",
-    allocation: "38,4%",
-    bar: 84
-  },
-  {
-    ticker: "KNRI11",
-    name: "Kinea Renda Imobiliária",
-    quantity: "800",
-    average: "R$ 150,75",
-    current: "R$ 158,60",
-    change: "+5,20%",
-    income: "R$ 632,00",
-    perShare: "R$ 0,7900/cota",
-    allocation: "22,7%",
-    bar: 50
-  },
-  {
-    ticker: "MXRF11",
-    name: "Maxi Renda",
-    quantity: "1.000",
-    average: "R$ 10,25",
-    current: "R$ 10,48",
-    change: "+2,24%",
-    income: "R$ 672,00",
-    perShare: "R$ 0,5600/cota",
-    allocation: "16,8%",
-    bar: 34
-  },
-  {
-    ticker: "XPML11",
-    name: "XP Malls",
-    quantity: "600",
-    average: "R$ 103,50",
-    current: "R$ 106,20",
-    change: "+2,61%",
-    income: "R$ 270,00",
-    perShare: "R$ 0,4500/cota",
-    allocation: "9,4%",
-    bar: 18
-  }
-];
+const allocationColors = ["#0f5a35", "#2fb47c", "#f5aa2f", "#9aa1a5", "#d7dadd", "#89c99f"];
 
 function formatYAxis(value: number) {
   if (value === 0) return "R$ 0";
@@ -137,7 +110,19 @@ function formatTooltipMoney(value: unknown) {
 }
 
 function formatTooltipPercent(value: unknown) {
-  return typeof value === "number" ? `${value.toLocaleString("pt-BR")}%` : String(value ?? "");
+  return typeof value === "number" ? `${value.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%` : String(value ?? "");
+}
+
+function formatDateLabel(date: Date) {
+  return date.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }).replace(".", "/");
+}
+
+async function fetchMarketFii(ticker: string) {
+  const response = await fetch(`/api/market-data/fiis/${ticker}`);
+  if (!response.ok) return null;
+
+  const payload = await response.json() as { data: MarketFii | null };
+  return payload.data;
 }
 
 function ChartFrame({
@@ -169,20 +154,26 @@ function ChartFrame({
   );
 }
 
-function Sparkline({ type }: { type: "wallet" | "income" | "yield" | "growth" }) {
-  const points = {
-    wallet: "M2 34 C10 32 9 20 18 24 C25 27 25 20 33 22 C39 24 42 18 48 20 C55 21 55 10 62 8",
-    income: "M2 36 C8 31 12 33 18 25 C23 17 27 29 32 21 C37 12 42 22 47 14 C52 5 56 18 62 10",
-    yield: "M2 15 C10 7 12 20 19 18 C26 17 29 23 36 24 C44 26 49 27 62 21",
-    growth: "M2 34 C11 33 13 22 21 25 C29 28 28 12 36 18 C45 25 44 9 51 13 C56 16 57 8 62 6"
-  };
+function Sparkline({ dataKey, data }: { data: number[]; dataKey: "growth" | "income" | "wallet" | "yield" }) {
+  if (data.length < 2) return <svg className="sparkline" viewBox="0 0 64 42" aria-hidden="true" />;
+
+  const max = Math.max(...data);
+  const min = Math.min(...data);
+  const range = max - min || 1;
+  const path = data
+    .map((value, index) => {
+      const x = (index / (data.length - 1)) * 60 + 2;
+      const y = 34 - (((value - min) / range) * 26);
+      return `${index === 0 ? "M" : "L"}${x} ${y}`;
+    })
+    .join(" ");
 
   return (
     <svg className="sparkline" viewBox="0 0 64 42" aria-hidden="true">
       <motion.path
-        d={points[type]}
+        d={path}
         fill="none"
-        stroke="#14955d"
+        stroke={dataKey === "yield" ? "#0f5a35" : "#14955d"}
         strokeLinecap="round"
         strokeWidth="2.2"
         initial={{ pathLength: 0, opacity: 0.4 }}
@@ -198,13 +189,15 @@ function MetricCard({
   label,
   value,
   change,
-  spark
+  sparkData,
+  sparkKey
 }: {
+  change: string;
   icon: typeof Wallet;
   label: string;
+  sparkData: number[];
+  sparkKey: "growth" | "income" | "wallet" | "yield";
   value: string;
-  change: string;
-  spark: "wallet" | "income" | "yield" | "growth";
 }) {
   return (
     <motion.article
@@ -224,22 +217,232 @@ function MetricCard({
         <strong>{value}</strong>
         <small>{change} <em>no período</em></small>
       </div>
-      <Sparkline type={spark} />
+      <Sparkline data={sparkData} dataKey={sparkKey} />
     </motion.article>
   );
 }
 
 export default function DashboardPage() {
+  const [equityData, setEquityData] = useState<EquityPoint[]>([]);
+  const [dividendData, setDividendData] = useState<DividendPoint[]>([]);
+  const [allocationData, setAllocationData] = useState<AllocationPoint[]>([]);
+  const [portfolio, setPortfolio] = useState<PortfolioRow[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [marketNotice, setMarketNotice] = useState<string | null>(null);
+  const [updatedAt, setUpdatedAt] = useState<string>("");
   const [scenario, setScenario] = useState("Base");
   const [reinvest, setReinvest] = useState(true);
 
+  useEffect(() => {
+    void loadDashboard();
+  }, []);
+
+  async function loadDashboard() {
+    if (!isSupabaseConfigured || !supabase) {
+      setError("Supabase não está configurado para carregar o dashboard.");
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    if (authError || !authData.user) {
+      setError("Faça login para visualizar os dados reais do dashboard.");
+      setIsLoading(false);
+      return;
+    }
+
+    const { data: walletId, error: walletError } = await supabase.rpc("get_or_create_default_wallet");
+    if (walletError || !walletId) {
+      setError(walletError?.message ?? "Não foi possível carregar a carteira do dashboard.");
+      setIsLoading(false);
+      return;
+    }
+
+    const [{ data: positionRows, error: positionsError }, { data: transactions, error: transactionsError }] = await Promise.all([
+      supabase
+        .from("wallet_positions")
+        .select("ticker, quantity, average_price, fiis(name, segment)")
+        .eq("wallet_id", walletId)
+        .order("ticker"),
+      supabase
+        .from("transactions")
+        .select("ticker, type, occurred_at, unit_price, gross_amount")
+        .eq("wallet_id", walletId)
+        .order("occurred_at", { ascending: true })
+    ]);
+
+    if (positionsError || transactionsError) {
+      setError(positionsError?.message ?? transactionsError?.message ?? "Não foi possível carregar os dados reais do dashboard.");
+      setIsLoading(false);
+      return;
+    }
+
+    const tickers = (positionRows ?? []).map((row) => String(row.ticker));
+    const marketRows = await Promise.all(tickers.map(async (ticker) => [ticker, await fetchMarketFii(ticker)] as const));
+    const marketByTicker = new Map(marketRows);
+    const marketFallback = marketRows.some(([, market]) => !market?.lastPrice);
+
+    const positions: Position[] = (positionRows ?? []).map((row) => {
+      const ticker = String(row.ticker);
+      const fii = Array.isArray(row.fiis) ? row.fiis[0] : row.fiis;
+      const market = marketByTicker.get(ticker);
+      const quantity = Number(row.quantity ?? 0);
+      const average = Number(row.average_price ?? 0);
+      const current = Number(market?.lastPrice ?? average);
+      const dy = Number(market?.dividendYield12m ?? 0);
+      const result = (current - average) * quantity;
+      const estimatedIncome = current > 0 ? (current * quantity * dy) / 1200 : 0;
+
+      return {
+        average,
+        current,
+        dy,
+        income: estimatedIncome,
+        name: market?.name ?? fii?.name ?? ticker,
+        quantity,
+        result,
+        segment: market?.segment ?? fii?.segment ?? "Sem segmento",
+        ticker
+      };
+    });
+
+    const currentEquity = positions.reduce((sum, position) => sum + position.quantity * position.current, 0);
+    const invested = positions.reduce((sum, position) => sum + position.quantity * position.average, 0);
+    const result = currentEquity - invested;
+    const monthlyIncome = positions.reduce((sum, position) => sum + position.income, 0);
+    const averageDy = currentEquity > 0 ? positions.reduce((sum, position) => sum + ((position.quantity * position.current) * position.dy), 0) / currentEquity : 0;
+
+    const nextPortfolio = positions.map((position) => {
+      const allocationAmount = position.quantity * position.current;
+      const allocationValue = currentEquity > 0 ? (allocationAmount / currentEquity) * 100 : 0;
+      const perShareIncome = position.quantity > 0 ? position.income / position.quantity : 0;
+      const change = position.average > 0 ? ((position.current - position.average) / position.average) * 100 : 0;
+
+      return {
+        allocation: `${allocationValue.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`,
+        average: money.format(position.average),
+        bar: Math.min(allocationValue * 2.2, 100),
+        change: `${change >= 0 ? "+" : ""}${change.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`,
+        current: money.format(position.current),
+        income: money.format(position.income),
+        name: position.name,
+        perShare: `${money.format(perShareIncome)}/cota`,
+        quantity: position.quantity.toLocaleString("pt-BR"),
+        ticker: position.ticker
+      };
+    });
+
+    const segmentMap = new Map<string, number>();
+    positions.forEach((position) => {
+      const amount = position.quantity * position.current;
+      segmentMap.set(position.segment, (segmentMap.get(position.segment) ?? 0) + amount);
+    });
+
+    const nextAllocation = Array.from(segmentMap.entries()).map(([name, amount], index) => ({
+      amount,
+      color: allocationColors[index % allocationColors.length],
+      name,
+      value: currentEquity > 0 ? (amount / currentEquity) * 100 : 0
+    }));
+
+    const buyTransactions = ((transactions ?? []) as TransactionRow[]).filter((row) => row.type === "buy");
+    const currentMonth = new Date();
+    const nextEquityData: EquityPoint[] = Array.from({ length: 6 }, (_, index) => {
+      const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - (5 - index), 1);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      const monthInvested = buyTransactions
+        .filter((row) => row.occurred_at.startsWith(monthKey))
+        .reduce((sum, row) => sum + Number(row.gross_amount ?? 0), 0);
+
+      return {
+        cdi: index === 0 ? 0 : 0,
+        month: formatDateLabel(date),
+        patrimonio: monthInvested,
+      };
+    }).reduce<EquityPoint[]>((acc, point, index) => {
+      const prevPatrimonio = index === 0 ? 0 : acc[index - 1].patrimonio;
+      const prevCdi = index === 0 ? 0 : acc[index - 1].cdi;
+      acc.push({
+        cdi: prevCdi + (prevPatrimonio * 0.0085),
+        month: point.month,
+        patrimonio: index === 5 ? currentEquity : prevPatrimonio + point.patrimonio
+      });
+      return acc;
+    }, []);
+
+    const dividendTransactions = ((transactions ?? []) as TransactionRow[]).filter((row) => row.type === "dividend");
+    const nextDividendData: DividendPoint[] = Array.from({ length: 12 }, (_, index) => {
+      const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - (11 - index), 1);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      const value = dividendTransactions
+        .filter((row) => row.occurred_at.startsWith(monthKey))
+        .reduce((sum, row) => sum + Number(row.gross_amount ?? 0), 0);
+
+      return { month: formatDateLabel(date), value };
+    });
+
+    setEquityData(nextEquityData);
+    setDividendData(nextDividendData);
+    setAllocationData(nextAllocation);
+    setPortfolio(nextPortfolio);
+    setMarketNotice(marketFallback ? "Alguns preços atuais não responderam na fonte de mercado; o dashboard usou o preço médio como fallback em parte da carteira." : null);
+    setUpdatedAt(new Intl.DateTimeFormat("pt-BR", {
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      month: "2-digit",
+      year: "numeric"
+    }).format(new Date()));
+    setIsLoading(false);
+  }
+
   const projection = useMemo(() => {
+    const baseEquity = equityData.at(-1)?.patrimonio ?? 0;
+    const baseIncome = portfolio.reduce((sum, row) => sum + Number(row.income.replace(/[^\d,-]/g, "").replace(/\./g, "").replace(",", ".")), 0);
     const modifier = scenario === "Conservador" ? 0.82 : scenario === "Otimista" ? 1.18 : 1;
+    const contribution = 1000;
+    const years = 15;
+    const futureAsset = (baseEquity + (contribution * 12 * years)) * modifier;
+    const futureIncome = (baseIncome + (contribution * 0.08)) * modifier * (reinvest ? 1.1 : 1);
+
     return {
-      asset: money.format(986742.19 * modifier),
-      income: money.format(7912.45 * modifier)
+      asset: money.format(futureAsset),
+      income: money.format(futureIncome)
     };
-  }, [scenario]);
+  }, [equityData, portfolio, reinvest, scenario]);
+
+  const metricSpark = {
+    growth: portfolio.map((row) => Number(row.change.replace("%", "").replace(".", "").replace(",", "."))).filter((value) => Number.isFinite(value)),
+    income: dividendData.map((item) => item.value),
+    wallet: equityData.map((item) => item.patrimonio),
+    yield: allocationData.map((item) => item.value)
+  };
+
+  const dashboardSummary = useMemo(() => {
+    const patrimony = equityData.at(-1)?.patrimonio ?? 0;
+    const cdiReference = equityData.at(-1)?.cdi ?? 0;
+    const growthValue = patrimony - cdiReference;
+    const dividendValue = portfolio.reduce((sum, row) => sum + Number(row.income.replace(/[^\d,-]/g, "").replace(/\./g, "").replace(",", ".")), 0);
+    const dyValue = allocationData.reduce((sum, item, index) => {
+      const row = portfolio[index];
+      if (!row) return sum;
+      return sum;
+    }, 0);
+    const weightedDy = portfolio.length === 0
+      ? 0
+      : portfolio.reduce((sum, row) => sum + Number(row.allocation.replace("%", "").replace(",", ".")) * Number(row.change.replace("%", "").replace(".", "").replace(",", ".")), 0) / 100;
+
+    return {
+      dividendValue,
+      growthValue,
+      patrimony,
+      weightedDy
+    };
+  }, [allocationData, equityData, portfolio]);
 
   return (
     <AppShell>
@@ -249,14 +452,45 @@ export default function DashboardPage() {
             <h1>Simulador de Carteira FIIs</h1>
             <p>Monte sua carteira, acompanhe rendimentos e projete renda futura.</p>
           </div>
-          <span>Dados atualizados em 31/05/2024 às 18:40</span>
+          <span>{updatedAt ? `Dados atualizados em ${updatedAt}` : "Sincronizando dados reais..."}</span>
         </section>
 
+        {error && <div className="wallet-alert">{error}</div>}
+        {marketNotice && <div className="wallet-alert subtle">{marketNotice}</div>}
+
         <section className="metrics-grid" aria-label="Resumo da carteira">
-          <MetricCard icon={Wallet} label="Patrimônio total" value="R$ 284.531,42" change="+ R$ 12.384,21 (4,54%)" spark="wallet" />
-          <MetricCard icon={Package} label="Renda mensal" value="R$ 2.453,18" change="+ R$ 198,72 (8,81%)" spark="income" />
-          <MetricCard icon={Percent} label="Dividend Yield" value="10,36%" change="+ 0,58 p.p." spark="yield" />
-          <MetricCard icon={TrendingUp} label="Valorização" value="R$ 24.631,22" change="+ 9,46%" spark="growth" />
+          <MetricCard
+            icon={Wallet}
+            label="Patrimônio total"
+            value={money.format(dashboardSummary.patrimony)}
+            change={money.format(dashboardSummary.growthValue)}
+            sparkData={metricSpark.wallet}
+            sparkKey="wallet"
+          />
+          <MetricCard
+            icon={Package}
+            label="Renda mensal"
+            value={money.format(dashboardSummary.dividendValue)}
+            change={`${portfolio.length} ativos com provento estimado`}
+            sparkData={metricSpark.income}
+            sparkKey="income"
+          />
+          <MetricCard
+            icon={Percent}
+            label="Dividend Yield"
+            value={`${dashboardSummary.weightedDy.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`}
+            change="Média da carteira"
+            sparkData={metricSpark.yield}
+            sparkKey="yield"
+          />
+          <MetricCard
+            icon={TrendingUp}
+            label="Valorização"
+            value={money.format(dashboardSummary.growthValue)}
+            change={dashboardSummary.patrimony > 0 ? `${((dashboardSummary.growthValue / dashboardSummary.patrimony) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%` : "0,00%"}
+            sparkData={metricSpark.growth}
+            sparkKey="growth"
+          />
         </section>
 
         <section className="main-grid">
@@ -276,20 +510,20 @@ export default function DashboardPage() {
             </div>
             <ChartFrame className="large">
               {({ width, height }) => (
-                  <AreaChart width={width} height={height} data={equityData} margin={{ top: 16, right: 8, left: -6, bottom: 8 }}>
-                    <defs>
-                      <linearGradient id="equityFill" x1="0" x2="0" y1="0" y2="1">
-                        <stop offset="8%" stopColor="#209865" stopOpacity={0.24} />
-                        <stop offset="95%" stopColor="#209865" stopOpacity={0.02} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid stroke="#e7ece9" strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="month" tickLine={false} axisLine={{ stroke: "#d9dedb" }} tick={{ fill: "#667085", fontSize: 12 }} />
-                    <YAxis tickFormatter={formatYAxis} tickLine={false} axisLine={false} tick={{ fill: "#667085", fontSize: 12 }} />
-                    <Tooltip formatter={formatTooltipMoney} contentStyle={{ borderRadius: 8, borderColor: "#dfe5e2" }} />
-                    <Area type="monotone" dataKey="cdi" stroke="#9aa6a1" strokeDasharray="5 4" strokeWidth={1.6} fill="transparent" animationDuration={1400} />
-                    <Area type="monotone" dataKey="patrimonio" stroke="#14955d" strokeWidth={2.5} fill="url(#equityFill)" animationDuration={1700} />
-                  </AreaChart>
+                <AreaChart width={width} height={height} data={equityData} margin={{ top: 16, right: 8, left: -6, bottom: 8 }}>
+                  <defs>
+                    <linearGradient id="equityFill" x1="0" x2="0" y1="0" y2="1">
+                      <stop offset="8%" stopColor="#209865" stopOpacity={0.24} />
+                      <stop offset="95%" stopColor="#209865" stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid stroke="#e7ece9" strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="month" tickLine={false} axisLine={{ stroke: "#d9dedb" }} tick={{ fill: "#667085", fontSize: 12 }} />
+                  <YAxis tickFormatter={formatYAxis} tickLine={false} axisLine={false} tick={{ fill: "#667085", fontSize: 12 }} />
+                  <Tooltip formatter={formatTooltipMoney} contentStyle={{ borderRadius: 8, borderColor: "#dfe5e2" }} />
+                  <Area type="monotone" dataKey="cdi" stroke="#9aa6a1" strokeDasharray="5 4" strokeWidth={1.6} fill="transparent" animationDuration={1400} />
+                  <Area type="monotone" dataKey="patrimonio" stroke="#14955d" strokeWidth={2.5} fill="url(#equityFill)" animationDuration={1700} />
+                </AreaChart>
               )}
             </ChartFrame>
           </article>
@@ -301,17 +535,17 @@ export default function DashboardPage() {
             </div>
             <ChartFrame>
               {({ width, height }) => (
-                  <BarChart width={width} height={height} data={dividendData} margin={{ top: 18, right: 0, left: -12, bottom: 8 }}>
-                    <CartesianGrid stroke="#e7ece9" strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fill: "#667085", fontSize: 12 }} interval={1} />
-                    <YAxis tickFormatter={formatYAxis} tickLine={false} axisLine={false} tick={{ fill: "#667085", fontSize: 12 }} />
-                    <Tooltip formatter={formatTooltipMoney} contentStyle={{ borderRadius: 8, borderColor: "#dfe5e2" }} />
-                    <Bar dataKey="value" radius={[2, 2, 0, 0]} animationDuration={1300}>
-                      {dividendData.map((entry, index) => (
-                        <Cell key={entry.month + index} fill={index % 2 ? "#0f5a35" : "#144b31"} />
-                      ))}
-                    </Bar>
-                  </BarChart>
+                <BarChart width={width} height={height} data={dividendData} margin={{ top: 18, right: 0, left: -12, bottom: 8 }}>
+                  <CartesianGrid stroke="#e7ece9" strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fill: "#667085", fontSize: 12 }} interval={1} />
+                  <YAxis tickFormatter={formatYAxis} tickLine={false} axisLine={false} tick={{ fill: "#667085", fontSize: 12 }} />
+                  <Tooltip formatter={formatTooltipMoney} contentStyle={{ borderRadius: 8, borderColor: "#dfe5e2" }} />
+                  <Bar dataKey="value" radius={[2, 2, 0, 0]} animationDuration={1300}>
+                    {dividendData.map((entry, index) => (
+                      <Cell key={entry.month + index} fill={index % 2 ? "#0f5a35" : "#144b31"} />
+                    ))}
+                  </Bar>
+                </BarChart>
               )}
             </ChartFrame>
             <div className="chart-caption"><span />Renda de Dividendos</div>
@@ -372,7 +606,9 @@ export default function DashboardPage() {
                 <span>Alocação</span>
                 <span />
               </div>
-              {portfolio.map((item) => (
+              {portfolio.length === 0 ? (
+                <div className="wallet-empty-state">A carteira ainda não tem posições reais para exibir no dashboard.</div>
+              ) : portfolio.map((item) => (
                 <div className="table-row" key={item.ticker}>
                   <div><strong>{item.ticker}</strong><small>{item.name}</small></div>
                   <span>{item.quantity}</span>
@@ -386,15 +622,17 @@ export default function DashboardPage() {
                   <button aria-label={`Mais opções para ${item.ticker}`}><MoreVertical size={16} /></button>
                 </div>
               ))}
-              <div className="table-total">
-                <strong>Total</strong>
-                <span />
-                <span />
-                <span />
-                <strong>R$ 2.453,75</strong>
-                <strong>87,3%</strong>
-                <span />
-              </div>
+              {portfolio.length > 0 && (
+                <div className="table-total">
+                  <strong>Total</strong>
+                  <span />
+                  <span />
+                  <span />
+                  <strong>{money.format(dashboardSummary.dividendValue)}</strong>
+                  <strong>100%</strong>
+                  <span />
+                </div>
+              )}
             </div>
           </article>
 
@@ -422,15 +660,17 @@ export default function DashboardPage() {
                   )}
                 </ChartFrame>
                 <div className="donut-center">
-                  <strong>R$ 248,5k</strong>
+                  <strong>{compactMoney.format(dashboardSummary.patrimony)}</strong>
                   <span>Total alocado</span>
                 </div>
               </div>
               <div className="allocation-list">
-                {allocationData.map((item) => (
+                {allocationData.length === 0 ? (
+                  <div className="wallet-empty-state">Sem alocação por segmento ainda.</div>
+                ) : allocationData.map((item) => (
                   <div className="allocation-item" key={item.name}>
                     <span><i style={{ background: item.color }} />{item.name}</span>
-                    <strong>{item.value.toLocaleString("pt-BR")}%</strong>
+                    <strong>{item.value.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%</strong>
                     <small>{compactMoney.format(item.amount)}</small>
                   </div>
                 ))}

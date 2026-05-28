@@ -1235,9 +1235,9 @@ button {
 
 .wallet-table-head,
 .wallet-row {
-  min-width: 1160px;
+  min-width: 1360px;
   display: grid;
-  grid-template-columns: 1.55fr 0.55fr 0.9fr 0.9fr 1fr 1fr 1fr 0.55fr 1fr 76px;
+  grid-template-columns: 1.9fr 0.55fr 0.9fr 0.9fr 1fr 1fr 1fr 0.55fr 1fr 1fr 76px;
   align-items: center;
   column-gap: 14px;
 }
@@ -1257,6 +1257,14 @@ button {
   padding: 0 16px;
   border-bottom: 1px solid var(--line-soft);
   font-size: 13px;
+}
+
+.wallet-head-center {
+  text-align: center;
+}
+
+.wallet-cell-center {
+  text-align: center;
 }
 
 .wallet-row button {
@@ -1346,38 +1354,44 @@ button {
 }
 
 .asset-cell {
-  display: grid;
-  gap: 3px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 .asset-cell strong {
   font-size: 14px;
+  flex: 0 0 auto;
 }
 
 .asset-cell small {
   color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.asset-cell em {
-  width: fit-content;
+.asset-pill {
+  flex: 0 0 auto;
   border-radius: 4px;
   background: var(--green-3);
   color: var(--green);
   font-size: 11px;
-  font-style: normal;
   font-weight: 800;
   padding: 3px 6px;
 }
 
 .wallet-allocation {
   display: grid;
-  grid-template-columns: 46px 1fr;
-  gap: 8px;
-  align-items: center;
+  justify-items: center;
+  gap: 7px;
 }
 
 .wallet-allocation i {
   height: 4px;
+  width: 86px;
   background: #e9efec;
   overflow: hidden;
 }

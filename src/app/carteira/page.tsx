@@ -563,14 +563,15 @@ export default function CarteiraPage() {
               <div className="wallet-table">
                 <div className="wallet-table-head">
                   <span>Ativo</span>
-                  <span>Qtd.</span>
-                  <span>Preço médio</span>
-                  <span>Preço atual</span>
-                  <span>Investido</span>
-                  <span>Atual</span>
-                  <span>Resultado</span>
-                  <span>DY</span>
-                  <span>Alocação</span>
+                  <span className="wallet-head-center">Qtd.</span>
+                  <span className="wallet-head-center">Preço médio</span>
+                  <span className="wallet-head-center">Preço atual</span>
+                  <span className="wallet-head-center">Investido</span>
+                  <span className="wallet-head-center">Atual</span>
+                  <span className="wallet-head-center">Resultado</span>
+                  <span className="wallet-head-center">DY</span>
+                  <span className="wallet-head-center">Provisão mensal</span>
+                  <span className="wallet-head-center">Alocação</span>
                   <span />
                 </div>
                 {isLoading ? (
@@ -588,17 +589,18 @@ export default function CarteiraPage() {
                   return (
                     <div className="wallet-row" key={item.ticker}>
                       <div className="asset-cell">
+                        <span className="asset-pill">({item.segment})</span>
                         <strong>{item.ticker}</strong>
-                        <small>{item.name}</small>
-                        <em>{item.segment}</em>
+                        <small>({item.name})</small>
                       </div>
-                      <span>{item.quantity.toLocaleString("pt-BR")}</span>
-                      <span>{currency.format(item.average)}</span>
-                      <span>{currency.format(item.price)}</span>
-                      <span>{currency.format(invested)}</span>
-                      <strong>{currency.format(current)}</strong>
-                      <span className={result >= 0 ? "positive" : ""}>{currency.format(result)}</span>
-                      <span>{item.dy}</span>
+                      <span className="wallet-cell-center">{item.quantity.toLocaleString("pt-BR")}</span>
+                      <span className="wallet-cell-center">{currency.format(item.average)}</span>
+                      <span className="wallet-cell-center">{currency.format(item.price)}</span>
+                      <span className="wallet-cell-center">{currency.format(invested)}</span>
+                      <strong className="wallet-cell-center">{currency.format(current)}</strong>
+                      <span className={`wallet-cell-center ${result >= 0 ? "positive" : ""}`}>{currency.format(result)}</span>
+                      <span className="wallet-cell-center">{item.dy}</span>
+                      <span className="wallet-cell-center">{currency.format(item.income)}</span>
                       <div className="wallet-allocation">
                         <span>{item.allocation.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%</span>
                         <i><b style={{ width: `${Math.min(item.allocation * 2.2, 100)}%` }} /></i>
