@@ -169,7 +169,7 @@ export default function CarteiraPage() {
   }, [isOperationOpen, query]);
 
   async function getOrCreateWalletId(userId: string) {
-    if (!supabase) throw new Error("Supabase nÃ£o configurado.");
+    if (!supabase) throw new Error("Supabase não configurado.");
 
     const rpcResult = await supabase.rpc("get_or_create_default_wallet");
     if (!rpcResult.error && rpcResult.data) {
@@ -199,7 +199,7 @@ export default function CarteiraPage() {
 
   async function loadWalletData() {
     if (!isSupabaseConfigured || !supabase) {
-      setError("Supabase nÃ£o estÃ¡ configurado. Confira as variÃ¡veis NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY.");
+      setError("Supabase não está configurado. Confira as variáveis NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY.");
       setIsLoading(false);
       return;
     }
@@ -209,7 +209,7 @@ export default function CarteiraPage() {
 
     const { data: authData, error: authError } = await supabase.auth.getUser();
     if (authError || !authData.user) {
-      setError("FaÃ§a login para carregar sua carteira.");
+      setError("Faça login para carregar sua carteira.");
       setIsLoading(false);
       return;
     }
@@ -218,7 +218,7 @@ export default function CarteiraPage() {
     try {
       walletId = await getOrCreateWalletId(authData.user.id);
     } catch (walletError) {
-      setError(walletError instanceof Error ? walletError.message : "NÃ£o foi possÃ­vel carregar sua carteira.");
+      setError(walletError instanceof Error ? walletError.message : "Não foi possível carregar sua carteira.");
       setIsLoading(false);
       return;
     }
@@ -238,7 +238,7 @@ export default function CarteiraPage() {
     ]);
 
     if (positionsError || transactionsError) {
-      setError(positionsError?.message ?? transactionsError?.message ?? "NÃ£o foi possÃ­vel buscar os dados da carteira.");
+      setError(positionsError?.message ?? transactionsError?.message ?? "Não foi possível buscar os dados da carteira.");
       setIsLoading(false);
       return;
     }
@@ -284,7 +284,7 @@ export default function CarteiraPage() {
 
     setPositions(nextPositions);
     setMovements(nextMovements);
-    setMarketNotice(usedAverageAsPrice ? "Alguns preÃ§os atuais nÃ£o responderam na fonte de mercado; nesses casos a tela usa o preÃ§o mÃ©dio apenas como fallback visual." : null);
+    setMarketNotice(usedAverageAsPrice ? "Alguns preços atuais não responderam na fonte de mercado; nesses casos a tela usa o preço médio apenas como fallback visual." : null);
     setIsLoading(false);
   }
 
@@ -293,7 +293,7 @@ export default function CarteiraPage() {
 
     try {
       const response = await fetch(`/api/market-data/fiis?q=${encodeURIComponent(normalized)}`);
-      if (!response.ok) throw new Error("Fonte de mercado indisponÃ­vel.");
+      if (!response.ok) throw new Error("Fonte de mercado indisponível.");
 
       const payload = await response.json() as { data: MarketFii[] };
       const options = (payload.data ?? []).slice(0, 8).map((fii) => ({
@@ -396,7 +396,7 @@ export default function CarteiraPage() {
       try {
         await recordBuyDirect(selectedFii, boughtQuantity, boughtPrice);
       } catch (saveError) {
-        setError(saveError instanceof Error ? saveError.message : "NÃ£o foi possÃ­vel salvar a operaÃ§Ã£o.");
+        setError(saveError instanceof Error ? saveError.message : "Não foi possível salvar a operação.");
         setIsSaving(false);
         return;
       }
@@ -409,10 +409,10 @@ export default function CarteiraPage() {
   }
 
   async function recordBuyDirect(fii: FiiOption, boughtQuantity: number, boughtPrice: number) {
-    if (!supabase) throw new Error("Supabase nÃ£o configurado.");
+    if (!supabase) throw new Error("Supabase não configurado.");
 
     const { data: authData, error: authError } = await supabase.auth.getUser();
-    if (authError || !authData.user) throw new Error("FaÃ§a login para salvar operaÃ§Ãµes.");
+    if (authError || !authData.user) throw new Error("Faça login para salvar operações.");
 
     const walletId = await getOrCreateWalletId(authData.user.id);
 
@@ -435,7 +435,7 @@ export default function CarteiraPage() {
 
     if (transactionError) {
       throw new Error(transactionError.message.includes("foreign key")
-        ? "Este FII ainda nÃ£o existe no catÃ¡logo da base. Aplique a migration 002 para permitir cadastro automÃ¡tico a partir da fonte de mercado."
+        ? "Este FII ainda não existe no catálogo da base. Aplique a migration 002 para permitir cadastro automático a partir da fonte de mercado."
         : transactionError.message);
     }
 
@@ -482,7 +482,7 @@ export default function CarteiraPage() {
     if (rpcResult.error) {
       const { data: authData, error: authError } = await supabase.auth.getUser();
       if (authError || !authData.user) {
-        setError("FaÃ§a login para excluir posiÃ§Ãµes.");
+        setError("Faça login para excluir posições.");
         return;
       }
 
@@ -496,7 +496,7 @@ export default function CarteiraPage() {
 
         if (deleteError) throw deleteError;
       } catch (deleteError) {
-        setError(deleteError instanceof Error ? deleteError.message : "NÃ£o foi possÃ­vel excluir a posiÃ§Ã£o.");
+        setError(deleteError instanceof Error ? deleteError.message : "Não foi possível excluir a posição.");
         return;
       }
     }
@@ -506,16 +506,16 @@ export default function CarteiraPage() {
   }
 
   return (
-    <AppShell searchPlaceholder="Buscar FIIs, posiÃ§Ãµes, operaÃ§Ãµes...">
+    <AppShell searchPlaceholder="Buscar FIIs, posições, operações...">
       <main className="dashboard wallet-view">
         <section className="page-heading wallet-heading">
           <div>
             <h1>Carteira</h1>
-            <p>Gerencie posiÃ§Ãµes, acompanhe alocaÃ§Ã£o e registre operaÃ§Ãµes reais por usuÃ¡rio.</p>
+            <p>Gerencie posições, acompanhe alocação e registre operações reais por usuário.</p>
           </div>
           <div className="heading-actions">
             <button className="secondary-action"><Download size={17} /> Exportar</button>
-            <button className="primary-action compact" onClick={openOperationModal}><Plus size={17} /> Nova operaÃ§Ã£o</button>
+            <button className="primary-action compact" onClick={openOperationModal}><Plus size={17} /> Nova operação</button>
           </div>
         </section>
 
@@ -526,22 +526,22 @@ export default function CarteiraPage() {
           <motion.article className="wallet-summary-card" initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
             <span><Wallet size={20} /> Valor atual</span>
             <strong>{currency.format(summary.current)}</strong>
-            <small className={summary.result >= 0 ? "positive" : ""}>{currency.format(summary.result)} desde o inÃ­cio</small>
+            <small className={summary.result >= 0 ? "positive" : ""}>{currency.format(summary.result)} desde o início</small>
           </motion.article>
           <motion.article className="wallet-summary-card" initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.05 }}>
             <span><TrendingUp size={20} /> Resultado</span>
             <strong>{resultPercentage.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%</strong>
-            <small className={summary.result >= 0 ? "positive" : ""}>{currency.format(summary.result)} no perÃ­odo</small>
+            <small className={summary.result >= 0 ? "positive" : ""}>{currency.format(summary.result)} no período</small>
           </motion.article>
           <motion.article className="wallet-summary-card" initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 }}>
-            <span><ArrowDownUp size={20} /> PreÃ§o mÃ©dio</span>
+            <span><ArrowDownUp size={20} /> Preço médio</span>
             <strong>{currency.format(summary.averagePrice)}</strong>
-            <small>{positions.length} ativos com posiÃ§Ã£o aberta</small>
+            <small>{positions.length} ativos com posição aberta</small>
           </motion.article>
           <motion.article className="wallet-summary-card" initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.15 }}>
-            <span><ShieldCheck size={20} /> Risco de concentraÃ§Ã£o</span>
+            <span><ShieldCheck size={20} /> Risco de concentração</span>
             <strong>{maxAllocation > 40 ? "Alto" : maxAllocation > 25 ? "Moderado" : "Baixo"}</strong>
-            <small>Maior posiÃ§Ã£o em {maxAllocation.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%</small>
+            <small>Maior posição em {maxAllocation.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%</small>
           </motion.article>
         </section>
 
@@ -549,8 +549,8 @@ export default function CarteiraPage() {
           <article className="panel positions-panel">
             <div className="wallet-toolbar">
               <div className="wallet-tabs">
-                <button className={activeTab === "positions" ? "active" : ""} onClick={() => setActiveTab("positions")}>PosiÃ§Ãµes</button>
-                <button className={activeTab === "operations" ? "active" : ""} onClick={() => setActiveTab("operations")}>OperaÃ§Ãµes</button>
+                <button className={activeTab === "positions" ? "active" : ""} onClick={() => setActiveTab("positions")}>Posições</button>
+                <button className={activeTab === "operations" ? "active" : ""} onClick={() => setActiveTab("operations")}>Operações</button>
                 <button className={activeTab === "dividends" ? "active" : ""} onClick={() => setActiveTab("dividends")}>Proventos</button>
               </div>
               <div className="wallet-tools">
@@ -564,13 +564,13 @@ export default function CarteiraPage() {
                 <div className="wallet-table-head">
                   <span>Ativo</span>
                   <span>Qtd.</span>
-                  <span>PreÃ§o mÃ©dio</span>
-                  <span>PreÃ§o atual</span>
+                  <span>Preço médio</span>
+                  <span>Preço atual</span>
                   <span>Investido</span>
                   <span>Atual</span>
                   <span>Resultado</span>
                   <span>DY</span>
-                  <span>AlocaÃ§Ã£o</span>
+                  <span>Alocação</span>
                   <span />
                 </div>
                 {isLoading ? (
@@ -627,7 +627,7 @@ export default function CarteiraPage() {
                   <span>Status</span>
                 </div>
                 {movements.length === 0 ? (
-                  <div className="wallet-empty-state">Nenhuma operaÃ§Ã£o registrada ainda.</div>
+                  <div className="wallet-empty-state">Nenhuma operação registrada ainda.</div>
                 ) : movements.map((movement, index) => (
                   <div className="wallet-row operations-row" key={`${movement.type}-${movement.ticker}-${movement.date}-${index}`}>
                     <span>{movement.date}</span>
@@ -650,14 +650,14 @@ export default function CarteiraPage() {
                   <span>Origem</span>
                 </div>
                 {dividendMovements.length === 0 ? (
-                  <div className="wallet-empty-state">Nenhum provento recebido para este usuÃ¡rio.</div>
+                  <div className="wallet-empty-state">Nenhum provento recebido para este usuário.</div>
                 ) : dividendMovements.map((movement, index) => (
                   <div className="wallet-row dividends-row" key={`${movement.ticker}-${movement.date}-${index}`}>
                     <span>{movement.date}</span>
                     <strong>{movement.ticker}</strong>
                     <span className="positive">{currency.format(movement.value)}</span>
                     <em>{movement.status}</em>
-                    <span>TransaÃ§Ã£o da carteira</span>
+                    <span>Transação da carteira</span>
                   </div>
                 ))}
               </div>
@@ -692,7 +692,7 @@ export default function CarteiraPage() {
             <div className="operation-modal-header">
               <div>
                 <span>Compra de FII</span>
-                <h2>Nova operaÃ§Ã£o</h2>
+                <h2>Nova operação</h2>
               </div>
               <button type="button" onClick={() => setIsOperationOpen(false)} aria-label="Fechar">
                 <X size={18} />
@@ -774,11 +774,11 @@ export default function CarteiraPage() {
                 <strong>{detailPosition.quantity.toLocaleString("pt-BR")}</strong>
               </div>
               <div className="detail-metric">
-                <span>PreÃ§o mÃ©dio</span>
+                <span>Preço médio</span>
                 <strong>{currency.format(detailPosition.average)}</strong>
               </div>
               <div className="detail-metric">
-                <span>PreÃ§o atual</span>
+                <span>Preço atual</span>
                 <strong>{currency.format(detailPosition.price)}</strong>
               </div>
               <div className="detail-metric">
@@ -800,7 +800,7 @@ export default function CarteiraPage() {
                 <strong>{currency.format(detailPosition.income)}</strong>
               </div>
               <div className="detail-metric">
-                <span>AlocaÃ§Ã£o</span>
+                <span>Alocação</span>
                 <strong>{detailPosition.allocation.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%</strong>
               </div>
             </div>
@@ -808,7 +808,7 @@ export default function CarteiraPage() {
             <div className="operation-modal-actions">
               <button className="secondary-action" type="button" onClick={() => setDetailPosition(null)}>Fechar</button>
               <button className="row-detail-delete" type="button" onClick={() => deletePosition(detailPosition.ticker)}>
-                <Trash2 size={17} /> Excluir posiÃ§Ã£o
+                <Trash2 size={17} /> Excluir posição
               </button>
             </div>
           </div>

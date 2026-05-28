@@ -34,7 +34,7 @@ type InitialPosition = {
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 const decimal = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2, minimumFractionDigits: 2 });
 
-const steps = ["Bem-vindo", "Carteira", "PosiÃ§Ãµes", "RevisÃ£o", "Pronto"];
+const steps = ["Bem-vindo", "Carteira", "Posições", "Revisão", "Pronto"];
 
 function parseBrazilianNumber(value: string) {
   const normalized = value.replace(/\./g, "").replace(",", ".");
@@ -52,10 +52,10 @@ function getErrorMessage(error: unknown) {
     const candidate = error as { code?: unknown; details?: unknown; hint?: unknown; message?: unknown };
     return [candidate.message, candidate.details, candidate.hint, candidate.code]
       .filter((value) => typeof value === "string" && value.length > 0)
-      .join(" | ") || "NÃ£o foi possÃ­vel finalizar o onboarding.";
+      .join(" | ") || "Não foi possível finalizar o onboarding.";
   }
 
-  return "NÃ£o foi possÃ­vel finalizar o onboarding.";
+  return "Não foi possível finalizar o onboarding.";
 }
 
 async function fetchMarketFii(ticker: string) {
@@ -217,7 +217,7 @@ export function OnboardingWizard() {
     const parsedAverage = parseBrazilianNumber(averagePrice);
 
     if (parsedQuantity <= 0 || parsedAverage <= 0) {
-      setError("Informe quantidade e preÃ§o mÃ©dio maiores que zero.");
+      setError("Informe quantidade e preço médio maiores que zero.");
       return;
     }
 
@@ -249,7 +249,7 @@ export function OnboardingWizard() {
   }
 
   async function getOrCreateWalletId() {
-    if (!supabase) throw new Error("Supabase nÃ£o configurado.");
+    if (!supabase) throw new Error("Supabase não configurado.");
 
     const rpcResult = await supabase.rpc("get_or_create_default_wallet");
     if (!rpcResult.error && rpcResult.data) {
@@ -339,7 +339,7 @@ export function OnboardingWizard() {
 
   function nextStep() {
     if (step === 1 && !walletName.trim()) {
-      setError("DÃª um nome para sua carteira.");
+      setError("Dê um nome para sua carteira.");
       return;
     }
 
@@ -377,18 +377,18 @@ export function OnboardingWizard() {
             <div className="onboarding-hero">
               <span>Boas-vindas</span>
               <h2 id="onboarding-title">Vamos montar sua carteira inicial</h2>
-              <p>Em poucos passos vocÃª cria sua carteira, registra suas primeiras posiÃ§Ãµes reais e deixa o painel pronto para acompanhar patrimÃ´nio, renda e projeÃ§Ãµes.</p>
+              <p>Em poucos passos você cria sua carteira, registra suas primeiras posições reais e deixa o painel pronto para acompanhar patrimônio, renda e projeções.</p>
               <div className="onboarding-proof">
-                <strong>Dados por usuÃ¡rio</strong>
+                <strong>Dados por usuário</strong>
                 <strong>FIIs via fonte de mercado</strong>
-                <strong>PersistÃªncia no Supabase</strong>
+                <strong>Persistência no Supabase</strong>
               </div>
             </div>
           )}
 
           {step === 1 && (
             <div className="onboarding-form">
-              <span>ConfiguraÃ§Ã£o</span>
+              <span>Configuração</span>
               <h2 id="onboarding-title">Defina sua carteira</h2>
               <div className="onboarding-grid">
                 <label>
@@ -413,7 +413,7 @@ export function OnboardingWizard() {
 
           {step === 2 && (
             <div className="onboarding-form">
-              <span>PosiÃ§Ãµes iniciais</span>
+              <span>Posições iniciais</span>
               <h2 id="onboarding-title">Adicione seus FIIs</h2>
               <div className="onboarding-position-builder">
                 <label className="onboarding-search">
@@ -438,14 +438,14 @@ export function OnboardingWizard() {
                     <input value={quantity} onChange={(event) => setQuantity(event.target.value)} inputMode="decimal" />
                   </label>
                   <label>
-                    PreÃ§o mÃ©dio
+                    Preço médio
                     <input value={averagePrice} onChange={(event) => setAveragePrice(event.target.value)} inputMode="decimal" />
                   </label>
                   <button className="primary-action compact" onClick={addPosition} type="button"><Plus size={17} /> Adicionar</button>
                 </div>
               </div>
               <div className="onboarding-position-list">
-                {positions.length === 0 ? <small>Nenhuma posiÃ§Ã£o adicionada ainda. VocÃª tambÃ©m pode finalizar com a carteira vazia.</small> : positions.map((position) => (
+                {positions.length === 0 ? <small>Nenhuma posição adicionada ainda. Você também pode finalizar com a carteira vazia.</small> : positions.map((position) => (
                   <div key={position.id}>
                     <strong>{position.ticker}</strong>
                     <span>{position.quantity.toLocaleString("pt-BR")} cotas</span>
@@ -461,7 +461,7 @@ export function OnboardingWizard() {
 
           {step === 3 && (
             <div className="onboarding-review">
-              <span>RevisÃ£o</span>
+              <span>Revisão</span>
               <h2 id="onboarding-title">Confira antes de finalizar</h2>
               <div className="onboarding-review-grid">
                 <div>
@@ -473,7 +473,7 @@ export function OnboardingWizard() {
                   <strong>{positions.length}</strong>
                 </div>
                 <div>
-                  <small>PatrimÃ´nio inicial</small>
+                  <small>Patrimônio inicial</small>
                   <strong>{currency.format(total)}</strong>
                 </div>
                 <div>
@@ -481,7 +481,7 @@ export function OnboardingWizard() {
                   <strong>{currency.format(parseBrazilianNumber(monthlyGoal))}</strong>
                 </div>
               </div>
-              <p>{positions.length === 0 ? "VocÃª estÃ¡ finalizando com a carteira vazia. Depois poderÃ¡ adicionar posiÃ§Ãµes pela tela Carteira." : "Essas posiÃ§Ãµes serÃ£o gravadas como compras iniciais na sua carteira."}</p>
+              <p>{positions.length === 0 ? "Você está finalizando com a carteira vazia. Depois poderá adicionar posições pela tela Carteira." : "Essas posições serão gravadas como compras iniciais na sua carteira."}</p>
             </div>
           )}
 
@@ -489,7 +489,7 @@ export function OnboardingWizard() {
             <div className="onboarding-done">
               <CheckCircle2 size={54} />
               <h2 id="onboarding-title">Carteira pronta</h2>
-              <p>Seu onboarding foi salvo. A carteira jÃ¡ pode ser acompanhada no portal.</p>
+              <p>Seu onboarding foi salvo. A carteira já pode ser acompanhada no portal.</p>
               <button className="primary-action compact" onClick={() => setOpen(false)} type="button">Entrar no portal</button>
             </div>
           )}
