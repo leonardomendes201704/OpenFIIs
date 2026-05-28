@@ -1,6 +1,7 @@
 "use client";
 
-import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Area,
   AreaChart,
@@ -26,6 +27,8 @@ import {
   Wallet
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { ChartFrame } from "@/components/chart-frame";
+import { buildProjection, ProjectionScenario } from "@/lib/projections";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 type MarketFii = {
@@ -110,7 +113,9 @@ function formatTooltipMoney(value: unknown) {
 }
 
 function formatTooltipPercent(value: unknown) {
-  return typeof value === "number" ? `${value.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%` : String(value ?? "");
+  return typeof value === "number"
+    ? `${value.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`
+    : String(value ?? "");
 }
 
 function formatDateLabel(date: Date) {
@@ -123,35 +128,6 @@ async function fetchMarketFii(ticker: string) {
 
   const payload = await response.json() as { data: MarketFii | null };
   return payload.data;
-}
-
-function ChartFrame({
-  className = "",
-  children
-}: {
-  className?: string;
-  children: (size: { width: number; height: number }) => ReactNode;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [size, setSize] = useState({ width: 0, height: 0 });
-
-  useEffect(() => {
-    if (!ref.current) return;
-
-    const observer = new ResizeObserver(([entry]) => {
-      const { width, height } = entry.contentRect;
-      setSize({ width: Math.round(width), height: Math.round(height) });
-    });
-
-    observer.observe(ref.current);
-    return () => observer.disconnect();
-  }, []);
-
-  return (
-    <div className={`chart-box ${className}`} ref={ref}>
-      {size.width > 0 && size.height > 0 ? children(size) : null}
-    </div>
-  );
 }
 
 function Sparkline({ dataKey, data }: { data: number[]; dataKey: "growth" | "income" | "wallet" | "yield" }) {
@@ -176,8 +152,8 @@ function Sparkline({ dataKey, data }: { data: number[]; dataKey: "growth" | "inc
         stroke={dataKey === "yield" ? "#0f5a35" : "#14955d"}
         strokeLinecap="round"
         strokeWidth="2.2"
-        initial={{ pathLength: 0, opacity: 0.4 }}
-        animate={{ pathLength: 1, opacity: 1 }}
+        initial={{ opacity: 0.4, pathLength: 0 }}
+        animate={{ opacity: 1, pathLength: 1 }}
         transition={{ duration: 1.4, ease: "easeOut" }}
       />
     </svg>
@@ -202,8 +178,8 @@ function MetricCard({
   return (
     <motion.article
       className="metric-card"
-      initial={{ y: 14, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45 }}
     >
       <div className="metric-icon">
@@ -223,16 +199,17 @@ function MetricCard({
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [equityData, setEquityData] = useState<EquityPoint[]>([]);
   const [dividendData, setDividendData] = useState<DividendPoint[]>([]);
   const [allocationData, setAllocationData] = useState<AllocationPoint[]>([]);
   const [portfolio, setPortfolio] = useState<PortfolioRow[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [marketNotice, setMarketNotice] = useState<string | null>(null);
-  const [updatedAt, setUpdatedAt] = useState<string>("");
-  const [scenario, setScenario] = useState("Base");
+  const [updatedAt, setUpdatedAt] = useState("");
+  const [scenario, setScenario] = useState<ProjectionScenario>("base");
   const [reinvest, setReinvest] = useState(true);
+  const [projectionYield, setProjectionYield] = useState(0);
 
   useEffect(() => {
     void loadDashboard();
@@ -241,24 +218,20 @@ export default function DashboardPage() {
   async function loadDashboard() {
     if (!isSupabaseConfigured || !supabase) {
       setError("Supabase não está configurado para carregar o dashboard.");
-      setIsLoading(false);
       return;
     }
 
-    setIsLoading(true);
     setError(null);
 
     const { data: authData, error: authError } = await supabase.auth.getUser();
     if (authError || !authData.user) {
       setError("Faça login para visualizar os dados reais do dashboard.");
-      setIsLoading(false);
       return;
     }
 
     const { data: walletId, error: walletError } = await supabase.rpc("get_or_create_default_wallet");
     if (walletError || !walletId) {
       setError(walletError?.message ?? "Não foi possível carregar a carteira do dashboard.");
-      setIsLoading(false);
       return;
     }
 
@@ -277,7 +250,6 @@ export default function DashboardPage() {
 
     if (positionsError || transactionsError) {
       setError(positionsError?.message ?? transactionsError?.message ?? "Não foi possível carregar os dados reais do dashboard.");
-      setIsLoading(false);
       return;
     }
 
@@ -295,13 +267,13 @@ export default function DashboardPage() {
       const current = Number(market?.lastPrice ?? average);
       const dy = Number(market?.dividendYield12m ?? 0);
       const result = (current - average) * quantity;
-      const estimatedIncome = current > 0 ? (current * quantity * dy) / 1200 : 0;
+      const income = current > 0 ? (current * quantity * dy) / 1200 : 0;
 
       return {
         average,
         current,
         dy,
-        income: estimatedIncome,
+        income,
         name: market?.name ?? fii?.name ?? ticker,
         quantity,
         result,
@@ -311,10 +283,10 @@ export default function DashboardPage() {
     });
 
     const currentEquity = positions.reduce((sum, position) => sum + position.quantity * position.current, 0);
-    const invested = positions.reduce((sum, position) => sum + position.quantity * position.average, 0);
-    const result = currentEquity - invested;
     const monthlyIncome = positions.reduce((sum, position) => sum + position.income, 0);
-    const averageDy = currentEquity > 0 ? positions.reduce((sum, position) => sum + ((position.quantity * position.current) * position.dy), 0) / currentEquity : 0;
+    const weightedDy = currentEquity > 0
+      ? positions.reduce((sum, position) => sum + ((position.quantity * position.current) * position.dy), 0) / currentEquity
+      : 0;
 
     const nextPortfolio = positions.map((position) => {
       const allocationAmount = position.quantity * position.current;
@@ -359,9 +331,9 @@ export default function DashboardPage() {
         .reduce((sum, row) => sum + Number(row.gross_amount ?? 0), 0);
 
       return {
-        cdi: index === 0 ? 0 : 0,
+        cdi: 0,
         month: formatDateLabel(date),
-        patrimonio: monthInvested,
+        patrimonio: monthInvested
       };
     }).reduce<EquityPoint[]>((acc, point, index) => {
       const prevPatrimonio = index === 0 ? 0 : acc[index - 1].patrimonio;
@@ -389,7 +361,12 @@ export default function DashboardPage() {
     setDividendData(nextDividendData);
     setAllocationData(nextAllocation);
     setPortfolio(nextPortfolio);
-    setMarketNotice(marketFallback ? "Alguns preços atuais não responderam na fonte de mercado; o dashboard usou o preço médio como fallback em parte da carteira." : null);
+    setProjectionYield(weightedDy);
+    setMarketNotice(
+      marketFallback
+        ? "Alguns preços atuais não responderam na fonte de mercado; o dashboard usou o preço médio como fallback em parte da carteira."
+        : null
+    );
     setUpdatedAt(new Intl.DateTimeFormat("pt-BR", {
       day: "2-digit",
       hour: "2-digit",
@@ -397,26 +374,33 @@ export default function DashboardPage() {
       month: "2-digit",
       year: "numeric"
     }).format(new Date()));
-    setIsLoading(false);
+    setError(null);
   }
 
   const projection = useMemo(() => {
     const baseEquity = equityData.at(-1)?.patrimonio ?? 0;
-    const baseIncome = portfolio.reduce((sum, row) => sum + Number(row.income.replace(/[^\d,-]/g, "").replace(/\./g, "").replace(",", ".")), 0);
-    const modifier = scenario === "Conservador" ? 0.82 : scenario === "Otimista" ? 1.18 : 1;
-    const contribution = 1000;
-    const years = 15;
-    const futureAsset = (baseEquity + (contribution * 12 * years)) * modifier;
-    const futureIncome = (baseIncome + (contribution * 0.08)) * modifier * (reinvest ? 1.1 : 1);
+    const baseIncome = portfolio.reduce(
+      (sum, row) => sum + Number(row.income.replace(/[^\d,-]/g, "").replace(/\./g, "").replace(",", ".")),
+      0
+    );
+
+    const result = buildProjection({
+      currentEquity: baseEquity,
+      currentMonthlyIncome: baseIncome,
+      monthlyContribution: 1000,
+      reinvestDividends: reinvest,
+      weightedDividendYield: projectionYield,
+      years: 15
+    }, scenario);
 
     return {
-      asset: money.format(futureAsset),
-      income: money.format(futureIncome)
+      asset: money.format(result.futureEquity),
+      income: money.format(result.futureMonthlyIncome)
     };
-  }, [equityData, portfolio, reinvest, scenario]);
+  }, [equityData, portfolio, projectionYield, reinvest, scenario]);
 
   const metricSpark = {
-    growth: portfolio.map((row) => Number(row.change.replace("%", "").replace(".", "").replace(",", "."))).filter((value) => Number.isFinite(value)),
+    growth: portfolio.map((row) => Number(row.change.replace("%", "").replace(".", "").replace(",", "."))).filter(Number.isFinite),
     income: dividendData.map((item) => item.value),
     wallet: equityData.map((item) => item.patrimonio),
     yield: allocationData.map((item) => item.value)
@@ -426,23 +410,29 @@ export default function DashboardPage() {
     const patrimony = equityData.at(-1)?.patrimonio ?? 0;
     const cdiReference = equityData.at(-1)?.cdi ?? 0;
     const growthValue = patrimony - cdiReference;
-    const dividendValue = portfolio.reduce((sum, row) => sum + Number(row.income.replace(/[^\d,-]/g, "").replace(/\./g, "").replace(",", ".")), 0);
-    const dyValue = allocationData.reduce((sum, item, index) => {
-      const row = portfolio[index];
-      if (!row) return sum;
-      return sum;
-    }, 0);
-    const weightedDy = portfolio.length === 0
-      ? 0
-      : portfolio.reduce((sum, row) => sum + Number(row.allocation.replace("%", "").replace(",", ".")) * Number(row.change.replace("%", "").replace(".", "").replace(",", ".")), 0) / 100;
+    const dividendValue = portfolio.reduce(
+      (sum, row) => sum + Number(row.income.replace(/[^\d,-]/g, "").replace(/\./g, "").replace(",", ".")),
+      0
+    );
 
     return {
       dividendValue,
       growthValue,
       patrimony,
-      weightedDy
+      weightedDy: projectionYield
     };
-  }, [allocationData, equityData, portfolio]);
+  }, [equityData, portfolio, projectionYield]);
+
+  function openDetailedProjection() {
+    const params = new URLSearchParams({
+      contribution: "1000",
+      reinvest: reinvest ? "true" : "false",
+      scenario,
+      years: "15"
+    });
+
+    router.push(`/projecoes/detalhada${String.fromCharCode(63)}${params.toString()}`);
+  }
 
   return (
     <AppShell>
@@ -487,7 +477,11 @@ export default function DashboardPage() {
             icon={TrendingUp}
             label="Valorização"
             value={money.format(dashboardSummary.growthValue)}
-            change={dashboardSummary.patrimony > 0 ? `${((dashboardSummary.growthValue / dashboardSummary.patrimony) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%` : "0,00%"}
+            change={
+              dashboardSummary.patrimony > 0
+                ? `${((dashboardSummary.growthValue / dashboardSummary.patrimony) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`
+                : "0,00%"
+            }
             sparkData={metricSpark.growth}
             sparkKey="growth"
           />
@@ -510,7 +504,7 @@ export default function DashboardPage() {
             </div>
             <ChartFrame className="large">
               {({ width, height }) => (
-                <AreaChart width={width} height={height} data={equityData} margin={{ top: 16, right: 8, left: -6, bottom: 8 }}>
+                <AreaChart width={width} height={height} data={equityData} margin={{ bottom: 8, left: -6, right: 8, top: 16 }}>
                   <defs>
                     <linearGradient id="equityFill" x1="0" x2="0" y1="0" y2="1">
                       <stop offset="8%" stopColor="#209865" stopOpacity={0.24} />
@@ -520,7 +514,7 @@ export default function DashboardPage() {
                   <CartesianGrid stroke="#e7ece9" strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="month" tickLine={false} axisLine={{ stroke: "#d9dedb" }} tick={{ fill: "#667085", fontSize: 12 }} />
                   <YAxis tickFormatter={formatYAxis} tickLine={false} axisLine={false} tick={{ fill: "#667085", fontSize: 12 }} />
-                  <Tooltip formatter={formatTooltipMoney} contentStyle={{ borderRadius: 8, borderColor: "#dfe5e2" }} />
+                  <Tooltip formatter={formatTooltipMoney} contentStyle={{ borderColor: "#dfe5e2", borderRadius: 8 }} />
                   <Area type="monotone" dataKey="cdi" stroke="#9aa6a1" strokeDasharray="5 4" strokeWidth={1.6} fill="transparent" animationDuration={1400} />
                   <Area type="monotone" dataKey="patrimonio" stroke="#14955d" strokeWidth={2.5} fill="url(#equityFill)" animationDuration={1700} />
                 </AreaChart>
@@ -535,11 +529,11 @@ export default function DashboardPage() {
             </div>
             <ChartFrame>
               {({ width, height }) => (
-                <BarChart width={width} height={height} data={dividendData} margin={{ top: 18, right: 0, left: -12, bottom: 8 }}>
+                <BarChart width={width} height={height} data={dividendData} margin={{ bottom: 8, left: -12, right: 0, top: 18 }}>
                   <CartesianGrid stroke="#e7ece9" strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fill: "#667085", fontSize: 12 }} interval={1} />
                   <YAxis tickFormatter={formatYAxis} tickLine={false} axisLine={false} tick={{ fill: "#667085", fontSize: 12 }} />
-                  <Tooltip formatter={formatTooltipMoney} contentStyle={{ borderRadius: 8, borderColor: "#dfe5e2" }} />
+                  <Tooltip formatter={formatTooltipMoney} contentStyle={{ borderColor: "#dfe5e2", borderRadius: 8 }} />
                   <Bar dataKey="value" radius={[2, 2, 0, 0]} animationDuration={1300}>
                     {dividendData.map((entry, index) => (
                       <Cell key={entry.month + index} fill={index % 2 ? "#0f5a35" : "#144b31"} />
@@ -548,7 +542,7 @@ export default function DashboardPage() {
                 </BarChart>
               )}
             </ChartFrame>
-            <div className="chart-caption"><span />Renda de Dividendos</div>
+            <div className="chart-caption"><span />Renda de dividendos</div>
           </article>
 
           <article className="panel projection-panel">
@@ -557,24 +551,35 @@ export default function DashboardPage() {
             <div className="amount-control">
               <span>R$</span>
               <input value="1.000,00" readOnly />
-              <button>-</button>
-              <button>+</button>
+              <button type="button">-</button>
+              <button type="button">+</button>
             </div>
 
             <div className="toggle-row">
               <span>Reinvestir dividendos <Info size={14} /></span>
-              <button className={`toggle ${reinvest ? "on" : ""}`} onClick={() => setReinvest((value) => !value)} aria-pressed={reinvest}>
+              <button className={`toggle ${reinvest ? "on" : ""}`} onClick={() => setReinvest((value) => !value)} aria-pressed={reinvest} type="button">
                 <i />
               </button>
             </div>
 
             <label>Prazo</label>
-            <button className="wide-select">15 anos <ChevronDown size={16} /></button>
+            <button className="wide-select" type="button">15 anos <ChevronDown size={16} /></button>
 
             <label>Cenário <Info size={14} /></label>
             <div className="scenario-tabs">
-              {["Conservador", "Base", "Otimista"].map((item) => (
-                <button className={scenario === item ? "active" : ""} onClick={() => setScenario(item)} key={item}>{item}</button>
+              {[
+                { label: "Conservador", value: "conservador" },
+                { label: "Base", value: "base" },
+                { label: "Otimista", value: "otimista" }
+              ].map((item) => (
+                <button
+                  className={scenario === item.value ? "active" : ""}
+                  onClick={() => setScenario(item.value as ProjectionScenario)}
+                  key={item.value}
+                  type="button"
+                >
+                  {item.label}
+                </button>
               ))}
             </div>
 
@@ -589,7 +594,13 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <button className="primary-action">Ver projeção detalhada <BarChart3 size={16} /></button>
+            <button
+              className="primary-action"
+              onClick={openDetailedProjection}
+              type="button"
+            >
+              Ver projeção detalhada <BarChart3 size={16} />
+            </button>
           </article>
         </section>
 
@@ -619,7 +630,7 @@ export default function DashboardPage() {
                     <span>{item.allocation}</span>
                     <i><b style={{ width: `${item.bar}%` }} /></i>
                   </div>
-                  <button aria-label={`Mais opções para ${item.ticker}`}><MoreVertical size={16} /></button>
+                  <button aria-label={`Mais opções para ${item.ticker}`} type="button"><MoreVertical size={16} /></button>
                 </div>
               ))}
               {portfolio.length > 0 && (

@@ -2769,6 +2769,116 @@ button {
   border-bottom: 0;
 }
 
+.projection-detail-view {
+  padding-bottom: 32px;
+}
+
+.projection-detail-hero {
+  margin-bottom: 14px;
+}
+
+.projection-control-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.projection-control-grid label {
+  display: grid;
+  gap: 8px;
+}
+
+.projection-control-grid label > span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.projection-control-grid select,
+.projection-stepper input {
+  width: 100%;
+  height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  color: #344054;
+  outline: 0;
+  padding: 0 12px;
+  font-weight: 800;
+}
+
+.projection-stepper {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 42px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.projection-stepper input {
+  border: 0;
+  border-left: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+  border-radius: 0;
+  text-align: center;
+}
+
+.projection-stepper button {
+  border: 0;
+  background: #fff;
+  color: #475467;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.projection-badge {
+  width: fit-content;
+  border-radius: 999px;
+  background: var(--green-3);
+  color: var(--green);
+  padding: 7px 11px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.projection-detail-layout,
+.projection-detail-bottom {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.projection-detail-layout {
+  grid-template-columns: minmax(0, 1fr) 370px;
+  align-items: start;
+}
+
+.projection-detail-bottom {
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 0.9fr);
+}
+
+.projection-detail-chart,
+.projection-detail-income,
+.projection-detail-breakdown,
+.projection-detail-income-bars {
+  display: grid;
+  gap: 16px;
+}
+
+.projection-mini-chart {
+  height: 280px;
+}
+
+.projection-empty-state strong {
+  color: #1d2939;
+  font-size: 18px;
+}
+
+.projection-empty-state span {
+  max-width: 520px;
+  line-height: 1.5;
+}
+
 .dividends-view {
   padding-bottom: 26px;
 }
@@ -3883,6 +3993,8 @@ button {
   .simulation-hero,
   .simulation-layout,
   .projection-command,
+  .projection-detail-layout,
+  .projection-detail-bottom,
   .projections-layout,
   .dividends-layout,
   .dividend-bottom-grid,
@@ -4085,6 +4197,7 @@ button {
 
   .projection-result,
   .allocation-content,
+  .projection-control-grid,
   .form-grid,
   .operation-modal-grid,
   .position-detail-grid,
@@ -4141,6 +4254,10 @@ button {
 
   .income-bars {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .projection-mini-chart {
+    height: 240px;
   }
 
   .dividend-bars {
