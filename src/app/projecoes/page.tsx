@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
   ArrowUpRight,
-  BarChart3,
   CalendarClock,
   ChevronDown,
   CircleDollarSign,
@@ -20,6 +19,7 @@ import {
   Wallet
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { InfoDialogButton } from "@/components/info-dialog-button";
 
 const projectionScenarios = [
   { name: "Conservador", income: "R$ 5.980", equity: "R$ 746.820", probability: "Alta", color: "#9aa1a5" },
@@ -76,7 +76,7 @@ export default function ProjecoesPage() {
 
         <section className="projection-command panel">
           <div className="projection-goal">
-            <span><Goal size={19} /> Meta principal</span>
+            <span><Goal size={19} /> Meta principal<InfoDialogButton label="Entender meta principal" title="Meta principal de renda" summary="A meta principal representa a renda mensal desejada para a carteira alcançar em valores reais." bullets={["Ela orienta o cálculo de prazo, aportes e patrimônio necessário.","Funciona como alvo de renda passiva, não apenas de valorização patrimonial.","Os cenários ao lado mostram quão plausível é chegar lá com as premissas atuais."]} /></span>
             <strong>{goal}/mês</strong>
             <p>Renda mensal desejada em valores reais, considerando reinvestimento e crescimento dos dividendos.</p>
             <div className="goal-control">
@@ -110,22 +110,22 @@ export default function ProjecoesPage() {
 
         <section className="projection-cards">
           <motion.article className="wallet-summary-card" initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
-            <span><CircleDollarSign size={20} /> Renda projetada</span>
+            <span><CircleDollarSign size={20} /> Renda projetada<InfoDialogButton label="Entender renda projetada" title="Renda projetada" summary="É a renda mensal estimada para o horizonte e cenário selecionados." bullets={["Reflete as premissas de aporte, crescimento e reinvestimento da simulação.","Serve para comparar distância até a meta principal.","Não é promessa de retorno; é um modelo de referência."]} /></span>
             <strong>{selectedScenario.income}/mês</strong>
             <small className="positive">+222,5% vs. renda atual</small>
           </motion.article>
           <motion.article className="wallet-summary-card" initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.05 }}>
-            <span><Wallet size={20} /> Patrimônio futuro</span>
+            <span><Wallet size={20} /> Patrimônio futuro<InfoDialogButton label="Entender patrimônio futuro" title="Patrimônio futuro" summary="Mostra o volume patrimonial estimado ao final do plano para o cenário ativo." bullets={["Combina patrimônio atual, aportes acumulados e crescimento projetado.","Ajuda a ver o tamanho de base que sustentaria a renda desejada.","Muda conforme o cenário e o ritmo de aportes."]} /></span>
             <strong>{selectedScenario.equity}</strong>
             <small>Cenário {selectedScenario.name.toLowerCase()}</small>
           </motion.article>
           <motion.article className="wallet-summary-card" initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 }}>
-            <span><PiggyBank size={20} /> Aportes totais</span>
+            <span><PiggyBank size={20} /> Aportes totais<InfoDialogButton label="Entender aportes totais" title="Aportes totais" summary="Representa quanto capital próprio entra no plano ao longo de todo o horizonte da projeção." bullets={["Não inclui rendimento de mercado, apenas dinheiro novo investido.","Mostra o esforço de capital necessário para a estratégia.","É útil para distinguir crescimento por aporte de crescimento por efeito composto."]} /></span>
             <strong>R$ 464.531</strong>
             <small>Capital próprio acumulado</small>
           </motion.article>
           <motion.article className="wallet-summary-card" initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.15 }}>
-            <span><Clock size={20} /> Data alvo</span>
+            <span><Clock size={20} /> Data alvo<InfoDialogButton label="Entender data alvo" title="Data alvo" summary="Indica o ponto em que o plano tende a alcançar a renda ou patrimônio esperados nas premissas atuais." bullets={["A aderência ao plano mede quão consistente esse alvo parece dentro do cenário ativo.","Mudanças de aporte e risco alteram essa estimativa.","É uma visão tática de prazo, não um compromisso fixo."]} /></span>
             <strong>Mai/2038</strong>
             <small>{selectedScenario.probability} aderência ao plano</small>
           </motion.article>

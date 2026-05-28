@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { ChartFrame } from "@/components/chart-frame";
+import { InfoDialogButton } from "@/components/info-dialog-button";
 import { buildProjection, getProjectionScenarioLabel, parseProjectionScenario, ProjectionScenario } from "@/lib/projections";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
@@ -449,7 +450,7 @@ function ProjectionDetailContent() {
 
               <article className="panel projection-detail-breakdown">
                 <div className="panel-header">
-                  <h2>Como calculamos</h2>
+                  <h2>Como calculamos <InfoDialogButton label="Entender metodologia da projeção" title="Metodologia da projeção" summary="Este bloco reúne as premissas que transformam a carteira atual em uma curva futura de patrimônio e renda." bullets={["Usamos patrimônio atual, renda mensal atual, aporte, prazo e cenário como base.","O DY da carteira alimenta a projeção de renda e muda com a premissa escolhida.","Quando o reinvestimento está ativo, os dividendos voltam a compor o patrimônio projetado."]} /></h2>
                   <span className="projection-badge">Metodologia</span>
                 </div>
                 <div className="assumption-list">

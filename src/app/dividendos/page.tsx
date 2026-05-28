@@ -16,6 +16,7 @@ import {
   WalletCards
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { InfoDialogButton } from "@/components/info-dialog-button";
 
 const dividendMonths = [
   { month: "Jun/23", value: 1600 },
@@ -72,22 +73,22 @@ export default function DividendosPage() {
 
         <section className="dividend-summary-grid">
           <motion.article className="wallet-summary-card" initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
-            <span><CircleDollarSign size={20} /> Renda do mês</span>
+            <span><CircleDollarSign size={20} /> Renda do mês<InfoDialogButton label="Entender renda do mês" title="Renda do mês" summary="Mostra o total de dividendos atribuídos ao mês selecionado ou ao último recorte consolidado da tela." bullets={["É a soma dos proventos considerados no período da análise.","Ajuda a comparar ritmo de geração de caixa entre meses.","O comparativo ao lado mede a diferença contra o mês imediatamente anterior."]} /></span>
             <strong>R$ 2.453,18</strong>
             <small className="positive">+ R$ 198,72 vs. mês anterior</small>
           </motion.article>
           <motion.article className="wallet-summary-card" initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.05 }}>
-            <span><TrendingUp size={20} /> Yield mensal</span>
+            <span><TrendingUp size={20} /> Yield mensal<InfoDialogButton label="Entender yield mensal" title="Yield mensal" summary="Yield mensal relaciona a renda do período com o capital alocado, ajudando a comparar eficiência de geração de proventos." bullets={["O valor anualizado dá uma referência comparável com DY de mercado.","É um indicador de renda, não de valorização da cota.","Mudanças na composição da carteira podem alterar bastante essa leitura."]} /></span>
             <strong>0,86%</strong>
             <small>10,36% anualizado</small>
           </motion.article>
           <motion.article className="wallet-summary-card" initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 }}>
-            <span><Banknote size={20} /> Recebido no ano</span>
+            <span><Banknote size={20} /> Recebido no ano<InfoDialogButton label="Entender recebido no ano" title="Recebido no ano" summary="Acumulado de dividendos distribuídos ao longo do ano corrente para acompanhar a evolução da renda recorrente." bullets={["Consolida todos os meses já fechados no ano.","Serve para monitorar meta anual de proventos.","É útil para comparar crescimento versus o mesmo período de anos anteriores."]} /></span>
             <strong>R$ 13.821,40</strong>
             <small>6 meses acumulados</small>
           </motion.article>
           <motion.article className="wallet-summary-card" initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.15 }}>
-            <span><CalendarDays size={20} /> Próximo pagamento</span>
+            <span><CalendarDays size={20} /> Próximo pagamento<InfoDialogButton label="Entender próximo pagamento" title="Próximo pagamento" summary="Destaca a próxima data de crédito prevista e os FIIs mais imediatos no calendário da carteira." bullets={["Ajuda a prever entrada de caixa de curtíssimo prazo.","Depende da agenda de pagamentos e da posição em carteira na data com.","É um painel operacional para planejamento de reinvestimento."]} /></span>
             <strong>14/06</strong>
             <small>HGLG11 e MXRF11</small>
           </motion.article>

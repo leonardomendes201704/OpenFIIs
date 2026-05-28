@@ -17,6 +17,7 @@ import {
   X
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { InfoDialogButton } from "@/components/info-dialog-button";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 type Position = {
@@ -524,22 +525,22 @@ export default function CarteiraPage() {
 
         <section className="wallet-summary-grid">
           <motion.article className="wallet-summary-card" initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
-            <span><Wallet size={20} /> Valor atual</span>
+            <span><Wallet size={20} /> Valor atual<InfoDialogButton label="Entender valor atual da carteira" title="Valor atual da carteira" summary="Esse KPI mostra quanto suas posições valem hoje usando preço de mercado quando disponível." bullets={["Somamos quantidade em carteira multiplicada pelo preço atual de cada FII.","Quando a cotação não responde, o sistema usa o preço médio da posição como fallback visual.","É a leitura direta do patrimônio alocado na carteira neste momento."]} /></span>
             <strong>{currency.format(summary.current)}</strong>
             <small className={summary.result >= 0 ? "positive" : ""}>{currency.format(summary.result)} desde o início</small>
           </motion.article>
           <motion.article className="wallet-summary-card" initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.05 }}>
-            <span><TrendingUp size={20} /> Resultado</span>
+            <span><TrendingUp size={20} /> Resultado<InfoDialogButton label="Entender resultado da carteira" title="Resultado consolidado" summary="Resultado compara o valor atual da carteira com o capital efetivamente investido nas posições abertas." bullets={["É a diferença entre patrimônio atual e custo médio total investido.","O percentual ajuda a ler o retorno agregado sem entrar ativo por ativo.","Não inclui posições encerradas que já saíram da carteira aberta."]} /></span>
             <strong>{resultPercentage.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%</strong>
             <small className={summary.result >= 0 ? "positive" : ""}>{currency.format(summary.result)} no período</small>
           </motion.article>
           <motion.article className="wallet-summary-card" initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 }}>
-            <span><ArrowDownUp size={20} /> Preço médio</span>
+            <span><ArrowDownUp size={20} /> Preço médio<InfoDialogButton label="Entender preço médio" title="Preço médio consolidado" summary="Preço médio resume o custo médio por cota considerando todas as posições abertas da carteira." bullets={["Usa o capital investido dividido pela quantidade total de cotas mantidas.","Serve de referência para medir valorização e ponto de equilíbrio.","Novas compras ajustam esse indicador automaticamente."]} /></span>
             <strong>{currency.format(summary.averagePrice)}</strong>
             <small>{positions.length} ativos com posição aberta</small>
           </motion.article>
           <motion.article className="wallet-summary-card" initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.15 }}>
-            <span><ShieldCheck size={20} /> Risco de concentração</span>
+            <span><ShieldCheck size={20} /> Risco de concentração<InfoDialogButton label="Entender risco de concentração" title="Risco de concentração" summary="Esse indicador olha o peso da maior posição para sinalizar quão dependente a carteira está de um único ativo." bullets={["Quanto maior o percentual da principal posição, maior a sensibilidade a um único FII.","A régua atual classifica como baixo, moderado ou alto com base no maior peso encontrado.","É um alerta rápido de diversificação, não uma recomendação automática."]} /></span>
             <strong>{maxAllocation > 40 ? "Alto" : maxAllocation > 25 ? "Moderado" : "Baixo"}</strong>
             <small>Maior posição em {maxAllocation.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%</small>
           </motion.article>
