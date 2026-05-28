@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, CheckCircle2, Plus, Search, Trash2, Wallet, X } from "lucide-react";
@@ -34,7 +34,7 @@ type InitialPosition = {
 const currency = new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" });
 const decimal = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2, minimumFractionDigits: 2 });
 
-const steps = ["Bem-vindo", "Carteira", "Posições", "Revisão", "Pronto"];
+const steps = ["Bem-vindo", "Carteira", "PosiÃ§Ãµes", "RevisÃ£o", "Pronto"];
 
 function parseBrazilianNumber(value: string) {
   const normalized = value.replace(/\./g, "").replace(",", ".");
@@ -44,6 +44,18 @@ function parseBrazilianNumber(value: string) {
 
 function formatNumberInput(value?: number) {
   return value ? decimal.format(value) : "";
+}
+
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === "object") {
+    const candidate = error as { code?: unknown; details?: unknown; hint?: unknown; message?: unknown };
+    return [candidate.message, candidate.details, candidate.hint, candidate.code]
+      .filter((value) => typeof value === "string" && value.length > 0)
+      .join(" | ") || "NÃ£o foi possÃ­vel finalizar o onboarding.";
+  }
+
+  return "NÃ£o foi possÃ­vel finalizar o onboarding.";
 }
 
 async function fetchMarketFii(ticker: string) {
@@ -205,7 +217,7 @@ export function OnboardingWizard() {
     const parsedAverage = parseBrazilianNumber(averagePrice);
 
     if (parsedQuantity <= 0 || parsedAverage <= 0) {
-      setError("Informe quantidade e preço médio maiores que zero.");
+      setError("Informe quantidade e preÃ§o mÃ©dio maiores que zero.");
       return;
     }
 
@@ -237,7 +249,7 @@ export function OnboardingWizard() {
   }
 
   async function getOrCreateWalletId() {
-    if (!supabase) throw new Error("Supabase não configurado.");
+    if (!supabase) throw new Error("Supabase nÃ£o configurado.");
 
     const rpcResult = await supabase.rpc("get_or_create_default_wallet");
     if (!rpcResult.error && rpcResult.data) {
@@ -272,14 +284,22 @@ export function OnboardingWizard() {
     }
 
     setIsSaving(true);
-    await supabase.from("profiles").upsert({
-      full_name: fullName,
-      id: userId,
-      investor_profile: investorProfile,
-      monthly_income_goal: parseBrazilianNumber(monthlyGoal),
-      onboarding_skipped_at: new Date().toISOString()
+    setError("");
+    const { error: skipError } = await supabase.rpc("complete_onboarding", {
+      p_full_name: fullName,
+      p_investor_profile: investorProfile,
+      p_monthly_income_goal: parseBrazilianNumber(monthlyGoal),
+      p_positions: [],
+      p_skipped: true,
+      p_wallet_name: walletName
     });
     setIsSaving(false);
+
+    if (skipError) {
+      setError(getErrorMessage(skipError));
+      return;
+    }
+
     setOpen(false);
     window.dispatchEvent(new Event("openfiis:onboarding-finished"));
   }
@@ -291,42 +311,27 @@ export function OnboardingWizard() {
     setError("");
 
     try {
-      const walletId = await getOrCreateWalletId();
-      const { error: walletError } = await supabase
-        .from("wallets")
-        .update({ name: walletName || "Carteira principal" })
-        .eq("id", walletId);
-
-      if (walletError) throw walletError;
-
-      for (const position of positions) {
-        const { error: buyError } = await supabase.rpc("record_buy_transaction", {
-          p_name: position.name,
-          p_occurred_at: new Date().toISOString().slice(0, 10),
-          p_quantity: position.quantity,
-          p_segment: position.segment,
-          p_ticker: position.ticker,
-          p_unit_price: position.averagePrice
-        });
-
-        if (buyError) throw buyError;
-      }
-
-      const { error: profileError } = await supabase.from("profiles").upsert({
-        full_name: fullName,
-        id: userId,
-        investor_profile: investorProfile,
-        monthly_income_goal: parseBrazilianNumber(monthlyGoal),
-        onboarding_completed_at: new Date().toISOString(),
-        onboarding_skipped_at: null
+      const { error: onboardingError } = await supabase.rpc("complete_onboarding", {
+        p_full_name: fullName,
+        p_investor_profile: investorProfile,
+        p_monthly_income_goal: parseBrazilianNumber(monthlyGoal),
+        p_positions: positions.map((position) => ({
+          average_price: position.averagePrice,
+          name: position.name,
+          quantity: position.quantity,
+          segment: position.segment,
+          ticker: position.ticker
+        })),
+        p_skipped: false,
+        p_wallet_name: walletName
       });
 
-      if (profileError) throw profileError;
+      if (onboardingError) throw onboardingError;
 
       setStep(4);
       window.dispatchEvent(new Event("openfiis:onboarding-finished"));
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "Não foi possível finalizar o onboarding.");
+      setError(getErrorMessage(saveError));
     } finally {
       setIsSaving(false);
     }
@@ -334,7 +339,7 @@ export function OnboardingWizard() {
 
   function nextStep() {
     if (step === 1 && !walletName.trim()) {
-      setError("Dê um nome para sua carteira.");
+      setError("DÃª um nome para sua carteira.");
       return;
     }
 
@@ -372,18 +377,18 @@ export function OnboardingWizard() {
             <div className="onboarding-hero">
               <span>Boas-vindas</span>
               <h2 id="onboarding-title">Vamos montar sua carteira inicial</h2>
-              <p>Em poucos passos você cria sua carteira, registra suas primeiras posições reais e deixa o painel pronto para acompanhar patrimônio, renda e projeções.</p>
+              <p>Em poucos passos vocÃª cria sua carteira, registra suas primeiras posiÃ§Ãµes reais e deixa o painel pronto para acompanhar patrimÃ´nio, renda e projeÃ§Ãµes.</p>
               <div className="onboarding-proof">
-                <strong>Dados por usuário</strong>
+                <strong>Dados por usuÃ¡rio</strong>
                 <strong>FIIs via fonte de mercado</strong>
-                <strong>Persistência no Supabase</strong>
+                <strong>PersistÃªncia no Supabase</strong>
               </div>
             </div>
           )}
 
           {step === 1 && (
             <div className="onboarding-form">
-              <span>Configuração</span>
+              <span>ConfiguraÃ§Ã£o</span>
               <h2 id="onboarding-title">Defina sua carteira</h2>
               <div className="onboarding-grid">
                 <label>
@@ -408,7 +413,7 @@ export function OnboardingWizard() {
 
           {step === 2 && (
             <div className="onboarding-form">
-              <span>Posições iniciais</span>
+              <span>PosiÃ§Ãµes iniciais</span>
               <h2 id="onboarding-title">Adicione seus FIIs</h2>
               <div className="onboarding-position-builder">
                 <label className="onboarding-search">
@@ -433,14 +438,14 @@ export function OnboardingWizard() {
                     <input value={quantity} onChange={(event) => setQuantity(event.target.value)} inputMode="decimal" />
                   </label>
                   <label>
-                    Preço médio
+                    PreÃ§o mÃ©dio
                     <input value={averagePrice} onChange={(event) => setAveragePrice(event.target.value)} inputMode="decimal" />
                   </label>
                   <button className="primary-action compact" onClick={addPosition} type="button"><Plus size={17} /> Adicionar</button>
                 </div>
               </div>
               <div className="onboarding-position-list">
-                {positions.length === 0 ? <small>Nenhuma posição adicionada ainda. Você também pode finalizar com a carteira vazia.</small> : positions.map((position) => (
+                {positions.length === 0 ? <small>Nenhuma posiÃ§Ã£o adicionada ainda. VocÃª tambÃ©m pode finalizar com a carteira vazia.</small> : positions.map((position) => (
                   <div key={position.id}>
                     <strong>{position.ticker}</strong>
                     <span>{position.quantity.toLocaleString("pt-BR")} cotas</span>
@@ -456,7 +461,7 @@ export function OnboardingWizard() {
 
           {step === 3 && (
             <div className="onboarding-review">
-              <span>Revisão</span>
+              <span>RevisÃ£o</span>
               <h2 id="onboarding-title">Confira antes de finalizar</h2>
               <div className="onboarding-review-grid">
                 <div>
@@ -468,7 +473,7 @@ export function OnboardingWizard() {
                   <strong>{positions.length}</strong>
                 </div>
                 <div>
-                  <small>Patrimônio inicial</small>
+                  <small>PatrimÃ´nio inicial</small>
                   <strong>{currency.format(total)}</strong>
                 </div>
                 <div>
@@ -476,7 +481,7 @@ export function OnboardingWizard() {
                   <strong>{currency.format(parseBrazilianNumber(monthlyGoal))}</strong>
                 </div>
               </div>
-              <p>{positions.length === 0 ? "Você está finalizando com a carteira vazia. Depois poderá adicionar posições pela tela Carteira." : "Essas posições serão gravadas como compras iniciais na sua carteira."}</p>
+              <p>{positions.length === 0 ? "VocÃª estÃ¡ finalizando com a carteira vazia. Depois poderÃ¡ adicionar posiÃ§Ãµes pela tela Carteira." : "Essas posiÃ§Ãµes serÃ£o gravadas como compras iniciais na sua carteira."}</p>
             </div>
           )}
 
@@ -484,7 +489,7 @@ export function OnboardingWizard() {
             <div className="onboarding-done">
               <CheckCircle2 size={54} />
               <h2 id="onboarding-title">Carteira pronta</h2>
-              <p>Seu onboarding foi salvo. A carteira já pode ser acompanhada no portal.</p>
+              <p>Seu onboarding foi salvo. A carteira jÃ¡ pode ser acompanhada no portal.</p>
               <button className="primary-action compact" onClick={() => setOpen(false)} type="button">Entrar no portal</button>
             </div>
           )}
