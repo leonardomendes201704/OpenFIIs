@@ -1,8 +1,8 @@
 "use client";
 
-import { ReactNode, useState } from "react";
+import { ReactNode, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   BarChart3,
   Bell,
@@ -18,11 +18,15 @@ import {
   HelpCircle,
   LayoutDashboard,
   LineChart,
+  LogOut,
   Menu,
   Search,
   Settings,
+  UserRound,
   X
 } from "lucide-react";
+import { OnboardingWizard } from "@/components/onboarding-wizard";
+import { supabase } from "@/lib/supabase";
 
 const navItems = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/" },
@@ -56,8 +60,55 @@ export function AppShell({
   searchPlaceholder?: string;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [userName, setUserName] = useState("Usuário");
+  const [userEmail, setUserEmail] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadUser() {
+      if (!supabase) return;
+
+      const { data } = await supabase.auth.getUser();
+      const user = data.user;
+
+      if (!isMounted || !user) return;
+
+      const fullName = typeof user.user_metadata?.full_name === "string" ? user.user_metadata.full_name : "";
+      setUserName(fullName || user.email?.split("@")[0] || "Usuário");
+      setUserEmail(user.email ?? "");
+    }
+
+    loadUser();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const userInitials = useMemo(() => {
+    return userName
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase())
+      .join("") || "U";
+  }, [userName]);
+
+  async function handleSignOut() {
+    if (supabase) {
+      await supabase.auth.signOut();
+    }
+
+    document.cookie = "openfiis_session=; path=/; max-age=0; SameSite=Lax";
+    setProfileOpen(false);
+    router.push("/login");
+    router.refresh();
+  }
 
   return (
     <div className={`app-shell ${collapsed ? "is-collapsed" : ""}`}>
@@ -120,18 +171,42 @@ export function AppShell({
             <Bell size={19} />
             <span>3</span>
           </button>
-          <button className="profile-button">
-            <span>CS</span>
-            <div>
-              <strong>Carlos Silva</strong>
-              <small>Perfil Investidor</small>
-            </div>
-            <ChevronDown size={16} />
-          </button>
+          <div className="profile-menu">
+            <button className="profile-button" onClick={() => setProfileOpen((value) => !value)} aria-expanded={profileOpen} aria-haspopup="menu">
+              <span>{userInitials}</span>
+              <div>
+                <strong>{userName}</strong>
+                <small>{userEmail || "Perfil Investidor"}</small>
+              </div>
+              <ChevronDown size={16} />
+            </button>
+
+            {profileOpen && (
+              <div className="profile-dropdown" role="menu">
+                <div className="profile-dropdown-user">
+                  <span>{userInitials}</span>
+                  <div>
+                    <strong>{userName}</strong>
+                    <small>{userEmail}</small>
+                  </div>
+                </div>
+                <Link href="/configuracoes" role="menuitem" onClick={() => setProfileOpen(false)}>
+                  <UserRound size={16} />
+                  Configurações
+                </Link>
+                <button onClick={handleSignOut} role="menuitem">
+                  <LogOut size={16} />
+                  Sair
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
       {children}
+
+      <OnboardingWizard />
 
       <footer className="footer">
         <span>© 2024 OpenFIIs. Todos os direitos reservados.</span>
