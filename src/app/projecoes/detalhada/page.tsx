@@ -27,7 +27,6 @@ import { AppShell } from "@/components/app-shell";
 import { ChartFrame } from "@/components/chart-frame";
 import { InfoDialogButton } from "@/components/info-dialog-button";
 import { buildProjection, getProjectionScenarioLabel, parseProjectionScenario, ProjectionScenario } from "@/lib/projections";
-import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 type MarketFii = {
   dividendYield12m?: number;
@@ -136,49 +135,28 @@ function ProjectionDetailContent() {
   }, [monthlyContribution, pathname, reinvest, router, scenario, searchParams, years]);
 
   async function loadProjectionData() {
-    if (!isSupabaseConfigured || !supabase) {
-      setError("Supabase não está configurado para carregar a projeção.");
-      setIsLoading(false);
-      return;
-    }
-
     setIsLoading(true);
     setError(null);
 
-    const { data: authData, error: authError } = await supabase.auth.getUser();
-    if (authError || !authData.user) {
-      setError("Faça login para visualizar a projeção detalhada.");
+    const response = await fetch("/api/portfolio");
+    const payload = await response.json() as {
+      data?: {
+        positions: PositionRow[];
+        transactions: TransactionRow[];
+      };
+      error?: string;
+    };
+
+    if (!response.ok || !payload.data) {
+      setError(payload.error ?? "Não foi possível carregar os dados reais da projeção.");
       setIsLoading(false);
       return;
     }
 
-    const { data: walletId, error: walletError } = await supabase.rpc("get_or_create_default_wallet");
-    if (walletError || !walletId) {
-      setError(walletError?.message ?? "Não foi possível carregar a carteira para projeção.");
-      setIsLoading(false);
-      return;
-    }
+    const positionRows = payload.data.positions;
+    const transactions = payload.data.transactions;
 
-    const [{ data: positionRows, error: positionsError }, { data: transactions, error: transactionsError }] = await Promise.all([
-      supabase
-        .from("wallet_positions")
-        .select("ticker, quantity, average_price, fiis(name, segment)")
-        .eq("wallet_id", walletId)
-        .order("ticker"),
-      supabase
-        .from("transactions")
-        .select("ticker, type, occurred_at, gross_amount")
-        .eq("wallet_id", walletId)
-        .order("occurred_at", { ascending: true })
-    ]);
-
-    if (positionsError || transactionsError) {
-      setError(positionsError?.message ?? transactionsError?.message ?? "Não foi possível carregar os dados reais da projeção.");
-      setIsLoading(false);
-      return;
-    }
-
-    const tickers = ((positionRows ?? []) as PositionRow[]).map((row) => String(row.ticker));
+    const tickers = positionRows.map((row) => String(row.ticker));
     const marketRows = await Promise.all(tickers.map(async (ticker) => [ticker, await fetchMarketFii(ticker)] as const));
     const marketByTicker = new Map(marketRows);
     const marketFallback = marketRows.some(([, market]) => !market?.lastPrice);

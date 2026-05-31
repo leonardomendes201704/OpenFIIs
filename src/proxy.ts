@@ -1,34 +1,16 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createServerClient } from "@supabase/ssr";
+import { getToken } from "next-auth/jwt";
+import { authSecret } from "@/lib/auth";
 
 const PUBLIC_ROUTES = ["/login"];
+const PUBLIC_PREFIXES = ["/api/auth"];
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
-  const response = NextResponse.next({ request });
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const isPublicRoute = PUBLIC_ROUTES.includes(pathname) || PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 
-  if (!supabaseUrl || !supabaseAnonKey) {
-    return isPublicRoute ? response : redirectToLogin(request);
-  }
-
-  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
-    cookies: {
-      getAll() {
-        return request.cookies.getAll();
-      },
-      setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value, options }) => {
-          response.cookies.set(name, value, options);
-        });
-      }
-    }
-  });
-
-  const { data: { user } } = await supabase.auth.getUser();
-  const hasSession = Boolean(user);
+  const token = await getToken({ req: request, secret: authSecret });
+  const hasSession = Boolean(token?.sub);
 
   if (!hasSession && !isPublicRoute) {
     return redirectToLogin(request);
@@ -41,7 +23,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(portalUrl);
   }
 
-  return response;
+  return NextResponse.next({ request });
 }
 
 function redirectToLogin(request: NextRequest) {

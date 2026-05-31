@@ -2,7 +2,8 @@
 
 import { ReactNode, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
+import { signOut, useSession } from "next-auth/react";
 import {
   BarChart3,
   Bell,
@@ -26,7 +27,6 @@ import {
   X
 } from "lucide-react";
 import { OnboardingWizard } from "@/components/onboarding-wizard";
-import { supabase } from "@/lib/supabase";
 
 const navItems = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/" },
@@ -60,7 +60,7 @@ export function AppShell({
   searchPlaceholder?: string;
 }) {
   const pathname = usePathname();
-  const router = useRouter();
+  const { data: session } = useSession();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -68,27 +68,10 @@ export function AppShell({
   const [userEmail, setUserEmail] = useState("");
 
   useEffect(() => {
-    let isMounted = true;
-
-    async function loadUser() {
-      if (!supabase) return;
-
-      const { data } = await supabase.auth.getUser();
-      const user = data.user;
-
-      if (!isMounted || !user) return;
-
-      const fullName = typeof user.user_metadata?.full_name === "string" ? user.user_metadata.full_name : "";
-      setUserName(fullName || user.email?.split("@")[0] || "Usuário");
-      setUserEmail(user.email ?? "");
-    }
-
-    loadUser();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+    const email = session?.user?.email ?? "";
+    setUserName(session?.user?.name || email.split("@")[0] || "Usuário");
+    setUserEmail(email);
+  }, [session]);
 
   const userInitials = useMemo(() => {
     return userName
@@ -100,14 +83,8 @@ export function AppShell({
   }, [userName]);
 
   async function handleSignOut() {
-    if (supabase) {
-      await supabase.auth.signOut();
-    }
-
-    document.cookie = "openfiis_session=; path=/; max-age=0; SameSite=Lax";
     setProfileOpen(false);
-    router.push("/login");
-    router.refresh();
+    await signOut({ callbackUrl: "/login" });
   }
 
   return (

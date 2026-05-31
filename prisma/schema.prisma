@@ -1,0 +1,165 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Profile {
+  id                    String    @id @db.Uuid
+  fullName              String?   @map("full_name")
+  investorProfile       String    @default("moderado") @map("investor_profile")
+  monthlyIncomeGoal     Decimal   @default(0) @map("monthly_income_goal") @db.Decimal(14, 2)
+  maxAssetAllocation    Decimal   @default(20) @map("max_asset_allocation") @db.Decimal(5, 2)
+  onboardingCompletedAt DateTime? @map("onboarding_completed_at") @db.Timestamptz
+  onboardingSkippedAt   DateTime? @map("onboarding_skipped_at") @db.Timestamptz
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@map("profiles")
+}
+
+model Wallet {
+  id           String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String           @map("user_id") @db.Uuid
+  name         String           @default("Carteira principal")
+  currency     String           @default("BRL")
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime         @updatedAt @map("updated_at") @db.Timestamptz
+  positions    WalletPosition[]
+  transactions Transaction[]
+
+  @@index([userId], map: "wallets_user_id_idx")
+  @@map("wallets")
+}
+
+model Fii {
+  ticker        String           @id
+  name          String
+  segment       String?
+  administrator String?
+  manager       String?
+  cnpj          String?
+  source        String?
+  createdAt     DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime         @updatedAt @map("updated_at") @db.Timestamptz
+  dividends     Dividend[]
+  positions     WalletPosition[]
+  quotes        FiiQuote[]
+  transactions  Transaction[]
+
+  @@map("fiis")
+}
+
+model Transaction {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  walletId    String   @map("wallet_id") @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  ticker      String
+  type        String
+  quantity    Decimal  @default(0) @db.Decimal(18, 6)
+  unitPrice   Decimal  @default(0) @map("unit_price") @db.Decimal(14, 4)
+  grossAmount Decimal  @default(0) @map("gross_amount") @db.Decimal(14, 2)
+  occurredAt  DateTime @default(now()) @map("occurred_at") @db.Date
+  notes       String?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  fii         Fii      @relation(fields: [ticker], references: [ticker])
+  wallet      Wallet   @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@index([ticker], map: "transactions_ticker_idx")
+  @@index([userId], map: "transactions_user_id_idx")
+  @@index([walletId], map: "transactions_wallet_id_idx")
+  @@map("transactions")
+}
+
+model WalletPosition {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  walletId     String   @map("wallet_id") @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  ticker       String
+  quantity     Decimal  @default(0) @db.Decimal(18, 6)
+  averagePrice Decimal  @default(0) @map("average_price") @db.Decimal(14, 4)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  fii          Fii      @relation(fields: [ticker], references: [ticker])
+  wallet       Wallet   @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@unique([walletId, ticker])
+  @@index([userId], map: "wallet_positions_user_id_idx")
+  @@index([walletId], map: "wallet_positions_wallet_id_idx")
+  @@map("wallet_positions")
+}
+
+model FiiQuote {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ticker    String
+  quoteDate DateTime @map("quote_date") @db.Date
+  open      Decimal? @db.Decimal(14, 4)
+  high      Decimal? @db.Decimal(14, 4)
+  low       Decimal? @db.Decimal(14, 4)
+  close     Decimal? @db.Decimal(14, 4)
+  volume    Decimal? @db.Decimal(18, 2)
+  source    String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  fii       Fii      @relation(fields: [ticker], references: [ticker], onDelete: Cascade)
+
+  @@unique([ticker, quoteDate, source])
+  @@index([ticker, quoteDate(sort: Desc)], map: "fii_quotes_ticker_date_idx")
+  @@map("fii_quotes")
+}
+
+model Dividend {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ticker         String
+  amountPerShare Decimal   @map("amount_per_share") @db.Decimal(14, 6)
+  baseDate       DateTime? @map("base_date") @db.Date
+  paymentDate    DateTime? @map("payment_date") @db.Date
+  type           String?
+  source         String
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  fii            Fii       @relation(fields: [ticker], references: [ticker], onDelete: Cascade)
+
+  @@unique([ticker, amountPerShare, baseDate, paymentDate, source])
+  @@index([ticker, paymentDate(sort: Desc)], map: "dividends_ticker_payment_idx")
+  @@map("dividends")
+}
+
+model Simulation {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId              String   @map("user_id") @db.Uuid
+  walletId            String?  @map("wallet_id") @db.Uuid
+  name                String
+  scenario            String   @default("base")
+  initialEquity       Decimal  @default(0) @map("initial_equity") @db.Decimal(14, 2)
+  monthlyContribution Decimal  @default(0) @map("monthly_contribution") @db.Decimal(14, 2)
+  years               Int      @default(15)
+  reinvestDividends   Boolean  @default(true) @map("reinvest_dividends")
+  assumptions         Json     @default("{}")
+  result              Json     @default("{}")
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@index([userId], map: "simulations_user_id_idx")
+  @@map("simulations")
+}
+
+model Report {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  walletId    String?   @map("wallet_id") @db.Uuid
+  name        String
+  reportType  String    @map("report_type")
+  format      String    @default("pdf")
+  status      String    @default("ready")
+  periodStart DateTime? @map("period_start") @db.Date
+  periodEnd   DateTime? @map("period_end") @db.Date
+  fileUrl     String?   @map("file_url")
+  metadata    Json      @default("{}")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@index([userId], map: "reports_user_id_idx")
+  @@map("reports")
+}

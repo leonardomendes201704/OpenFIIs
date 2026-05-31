@@ -4,18 +4,23 @@
   "private": true,
   "scripts": {
     "check:encoding": "node scripts/check-encoding.mjs",
-    "dev": "next dev",
+    "dev": "next dev -p 3001",
     "build": "npm run check:encoding && next build",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:studio": "prisma studio",
     "start": "next start",
     "lint": "next lint"
   },
   "dependencies": {
-    "@supabase/ssr": "^0.10.3",
-    "@supabase/supabase-js": "^2.106.2",
+    "@prisma/adapter-pg": "^7.8.0",
+    "@prisma/client": "^7.8.0",
     "framer-motion": "^12.40.0",
     "jszip": "^3.10.1",
     "lucide-react": "^1.17.0",
     "next": "^16.2.6",
+    "next-auth": "^4.24.14",
+    "pg": "^8.21.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "recharts": "^3.8.1"
@@ -26,7 +31,7 @@
     "@types/react-dom": "^19.2.3",
     "eslint": "^10.4.0",
     "eslint-config-next": "^16.2.6",
-    "supabase": "^2.101.0",
+    "prisma": "^7.8.0",
     "typescript": "^6.0.3"
   }
 }

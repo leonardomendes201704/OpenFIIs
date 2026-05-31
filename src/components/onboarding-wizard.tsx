@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, CheckCircle2, Plus, Search, Trash2, Wallet, X } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 
 type WizardStep = 0 | 1 | 2 | 3 | 4;
 
@@ -111,29 +110,32 @@ export function OnboardingWizard() {
   }, [open, query]);
 
   async function checkOnboarding() {
-    if (!supabase) {
+    const response = await fetch("/api/onboarding");
+    const payload = await response.json().catch(() => null) as {
+      data?: {
+        profile?: {
+          full_name?: string;
+          investor_profile?: string;
+          monthly_income_goal?: number;
+          onboarding_completed_at?: string | null;
+          onboarding_skipped_at?: string | null;
+        } | null;
+        user?: { id: string; name?: string | null };
+      };
+    } | null;
+
+    if (!response.ok || !payload?.data?.user) {
       setIsChecking(false);
       return;
     }
 
-    const { data: authData } = await supabase.auth.getUser();
-    const user = authData.user;
-    if (!user) {
-      setIsChecking(false);
-      return;
-    }
-
-    setUserId(user.id);
-    const metadataName = typeof user.user_metadata?.full_name === "string" ? user.user_metadata.full_name : "";
+    setUserId(payload.data.user.id);
+    const metadataName = payload.data.user.name ?? "";
     setFullName(metadataName);
 
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("full_name, investor_profile, monthly_income_goal, onboarding_completed_at, onboarding_skipped_at")
-      .eq("id", user.id)
-      .maybeSingle();
+    const profile = payload.data.profile;
 
-    if (!profileError && profile) {
+    if (profile) {
       setFullName(profile.full_name ?? metadataName);
       setInvestorProfile(profile.investor_profile ?? "moderado");
       setMonthlyGoal(formatNumberInput(Number(profile.monthly_income_goal ?? 0)) || "2.000,00");
@@ -165,18 +167,17 @@ export function OnboardingWizard() {
         ticker: fii.symbol
       })));
     } catch {
-      if (!supabase) return;
+      const response = await fetch(`/api/fiis?q=${encodeURIComponent(normalized)}`);
+      if (!response.ok) return;
 
-      const { data } = await supabase
-        .from("fiis")
-        .select("ticker, name, segment, source")
-        .or(`ticker.ilike.%${normalized}%,name.ilike.%${normalized}%`)
-        .limit(6);
+      const payload = await response.json() as {
+        data: Array<{ name: string; segment?: string; source?: string; ticker: string }>;
+      };
 
-      setFiis((data ?? []).map((fii) => ({
+      setFiis((payload.data ?? []).map((fii) => ({
         name: fii.name,
         segment: fii.segment ?? "Sem segmento",
-        source: fii.source ?? "supabase",
+        source: fii.source ?? "postgresql",
         ticker: fii.ticker
       })));
     }
@@ -248,55 +249,31 @@ export function OnboardingWizard() {
     setQuantity("100");
   }
 
-  async function getOrCreateWalletId() {
-    if (!supabase) throw new Error("Supabase não configurado.");
-
-    const rpcResult = await supabase.rpc("get_or_create_default_wallet");
-    if (!rpcResult.error && rpcResult.data) {
-      return String(rpcResult.data);
-    }
-
-    const { data: existingWallet, error: existingError } = await supabase
-      .from("wallets")
-      .select("id")
-      .eq("user_id", userId)
-      .order("created_at")
-      .limit(1)
-      .maybeSingle();
-
-    if (existingError) throw existingError;
-    if (existingWallet?.id) return String(existingWallet.id);
-
-    const { data: createdWallet, error: createError } = await supabase
-      .from("wallets")
-      .insert({ name: walletName, user_id: userId })
-      .select("id")
-      .single();
-
-    if (createError) throw createError;
-    return String(createdWallet.id);
-  }
-
   async function skipWizard() {
-    if (!supabase || !userId) {
+    if (!userId) {
       setOpen(false);
       return;
     }
 
     setIsSaving(true);
     setError("");
-    const { error: skipError } = await supabase.rpc("complete_onboarding", {
-      p_full_name: fullName,
-      p_investor_profile: investorProfile,
-      p_monthly_income_goal: parseBrazilianNumber(monthlyGoal),
-      p_positions: [],
-      p_skipped: true,
-      p_wallet_name: walletName
+    const response = await fetch("/api/onboarding", {
+      body: JSON.stringify({
+        full_name: fullName,
+        investor_profile: investorProfile,
+        monthly_income_goal: parseBrazilianNumber(monthlyGoal),
+        positions: [],
+        skipped: true,
+        wallet_name: walletName
+      }),
+      headers: { "Content-Type": "application/json" },
+      method: "POST"
     });
     setIsSaving(false);
 
-    if (skipError) {
-      setError(getErrorMessage(skipError));
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null) as { error?: string } | null;
+      setError(payload?.error ?? "Não foi possível finalizar o onboarding.");
       return;
     }
 
@@ -305,28 +282,35 @@ export function OnboardingWizard() {
   }
 
   async function finishWizard() {
-    if (!supabase || !userId) return;
+    if (!userId) return;
 
     setIsSaving(true);
     setError("");
 
     try {
-      const { error: onboardingError } = await supabase.rpc("complete_onboarding", {
-        p_full_name: fullName,
-        p_investor_profile: investorProfile,
-        p_monthly_income_goal: parseBrazilianNumber(monthlyGoal),
-        p_positions: positions.map((position) => ({
+      const response = await fetch("/api/onboarding", {
+        body: JSON.stringify({
+          full_name: fullName,
+          investor_profile: investorProfile,
+          monthly_income_goal: parseBrazilianNumber(monthlyGoal),
+          positions: positions.map((position) => ({
           average_price: position.averagePrice,
           name: position.name,
           quantity: position.quantity,
           segment: position.segment,
           ticker: position.ticker
         })),
-        p_skipped: false,
-        p_wallet_name: walletName
+          skipped: false,
+          wallet_name: walletName
+        }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST"
       });
 
-      if (onboardingError) throw onboardingError;
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null) as { error?: string } | null;
+        throw new Error(payload?.error ?? "Não foi possível finalizar o onboarding.");
+      }
 
       setStep(4);
       window.dispatchEvent(new Event("openfiis:onboarding-finished"));
@@ -381,7 +365,7 @@ export function OnboardingWizard() {
               <div className="onboarding-proof">
                 <strong>Dados por usuário</strong>
                 <strong>FIIs via fonte de mercado</strong>
-                <strong>Persistência no Supabase</strong>
+                <strong>Persistência no PostgreSQL</strong>
               </div>
             </div>
           )}

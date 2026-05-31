@@ -18,7 +18,6 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { InfoDialogButton } from "@/components/info-dialog-button";
-import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 type Position = {
   ticker: string;
@@ -169,82 +168,28 @@ export default function CarteiraPage() {
     return () => window.clearTimeout(timeout);
   }, [isOperationOpen, query]);
 
-  async function getOrCreateWalletId(userId: string) {
-    if (!supabase) throw new Error("Supabase não configurado.");
-
-    const rpcResult = await supabase.rpc("get_or_create_default_wallet");
-    if (!rpcResult.error && rpcResult.data) {
-      return String(rpcResult.data);
-    }
-
-    const { data: existingWallet, error: existingError } = await supabase
-      .from("wallets")
-      .select("id")
-      .eq("user_id", userId)
-      .order("created_at")
-      .limit(1)
-      .maybeSingle();
-
-    if (existingError) throw existingError;
-    if (existingWallet?.id) return String(existingWallet.id);
-
-    const { data: createdWallet, error: createError } = await supabase
-      .from("wallets")
-      .insert({ name: "Carteira principal", user_id: userId })
-      .select("id")
-      .single();
-
-    if (createError) throw createError;
-    return String(createdWallet.id);
-  }
-
   async function loadWalletData() {
-    if (!isSupabaseConfigured || !supabase) {
-      setError("Supabase não está configurado. Confira as variáveis NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY.");
-      setIsLoading(false);
-      return;
-    }
-
     setIsLoading(true);
     setError(null);
 
-    const { data: authData, error: authError } = await supabase.auth.getUser();
-    if (authError || !authData.user) {
-      setError("Faça login para carregar sua carteira.");
+    const response = await fetch("/api/portfolio");
+    const payload = await response.json() as {
+      data?: {
+        positions: Array<{ average_price: number; fiis?: { name?: string; segment?: string } | { name?: string; segment?: string }[] | null; quantity: number; ticker: string }>;
+        transactions: Array<{ gross_amount: number; occurred_at: string; ticker: string; type: string }>;
+      };
+      error?: string;
+    };
+
+    if (!response.ok || !payload.data) {
+      setError(payload.error ?? "Não foi possível buscar os dados da carteira.");
       setIsLoading(false);
       return;
     }
 
-    let walletId: string;
-    try {
-      walletId = await getOrCreateWalletId(authData.user.id);
-    } catch (walletError) {
-      setError(walletError instanceof Error ? walletError.message : "Não foi possível carregar sua carteira.");
-      setIsLoading(false);
-      return;
-    }
-
-    const [{ data: positionRows, error: positionsError }, { data: transactionRows, error: transactionsError }] = await Promise.all([
-      supabase
-        .from("wallet_positions")
-        .select("ticker, quantity, average_price, fiis(name, segment)")
-        .eq("wallet_id", walletId)
-        .order("ticker"),
-      supabase
-        .from("transactions")
-        .select("id, ticker, type, quantity, unit_price, gross_amount, occurred_at")
-        .eq("wallet_id", walletId)
-        .order("occurred_at", { ascending: false })
-        .order("created_at", { ascending: false })
-    ]);
-
-    if (positionsError || transactionsError) {
-      setError(positionsError?.message ?? transactionsError?.message ?? "Não foi possível buscar os dados da carteira.");
-      setIsLoading(false);
-      return;
-    }
-
-    const tickers = (positionRows ?? []).map((row) => String(row.ticker));
+    const positionRows = payload.data.positions;
+    const transactionRows = payload.data.transactions;
+    const tickers = positionRows.map((row) => String(row.ticker));
     const marketRows = await Promise.all(tickers.map(async (ticker) => [ticker, await fetchMarketFii(ticker)] as const));
     const marketByTicker = new Map(marketRows);
     const usedAverageAsPrice = marketRows.some(([, market]) => !market?.lastPrice);
@@ -312,18 +257,17 @@ export default function CarteiraPage() {
         selectFii(options[0], options);
       }
     } catch {
-      if (!supabase) return;
+      const response = await fetch(`/api/fiis?q=${encodeURIComponent(normalized)}`);
+      if (!response.ok) return;
 
-      const { data } = await supabase
-        .from("fiis")
-        .select("ticker, name, segment, source")
-        .or(`ticker.ilike.%${normalized}%,name.ilike.%${normalized}%`)
-        .limit(8);
+      const payload = await response.json() as {
+        data: Array<{ name: string; segment?: string; source?: string; ticker: string }>;
+      };
 
-      const options = (data ?? []).map((fii) => ({
+      const options = (payload.data ?? []).map((fii) => ({
         name: fii.name,
         segment: fii.segment ?? "Sem segmento",
-        source: fii.source ?? "supabase",
+        source: fii.source ?? "postgresql",
         ticker: fii.ticker
       }));
 
@@ -371,7 +315,7 @@ export default function CarteiraPage() {
 
   async function handleSaveOperation(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!supabase || !selectedFii) return;
+    if (!selectedFii) return;
 
     const boughtQuantity = parseBrazilianNumber(quantity);
     const boughtPrice = parseBrazilianNumber(quotaPrice);
@@ -384,23 +328,24 @@ export default function CarteiraPage() {
     setIsSaving(true);
     setError(null);
 
-    const rpcResult = await supabase.rpc("record_buy_transaction", {
-      p_name: selectedFii.name,
-      p_occurred_at: new Date().toISOString().slice(0, 10),
-      p_quantity: boughtQuantity,
-      p_segment: selectedFii.segment,
-      p_ticker: selectedFii.ticker,
-      p_unit_price: boughtPrice
+    const response = await fetch("/api/portfolio", {
+      body: JSON.stringify({
+        name: selectedFii.name,
+        occurred_at: new Date().toISOString().slice(0, 10),
+        quantity: boughtQuantity,
+        segment: selectedFii.segment,
+        ticker: selectedFii.ticker,
+        unit_price: boughtPrice
+      }),
+      headers: { "Content-Type": "application/json" },
+      method: "POST"
     });
 
-    if (rpcResult.error) {
-      try {
-        await recordBuyDirect(selectedFii, boughtQuantity, boughtPrice);
-      } catch (saveError) {
-        setError(saveError instanceof Error ? saveError.message : "Não foi possível salvar a operação.");
-        setIsSaving(false);
-        return;
-      }
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null) as { error?: string } | null;
+      setError(payload?.error ?? "Não foi possível salvar a operação.");
+      setIsSaving(false);
+      return;
     }
 
     await loadWalletData();
@@ -409,97 +354,14 @@ export default function CarteiraPage() {
     setIsSaving(false);
   }
 
-  async function recordBuyDirect(fii: FiiOption, boughtQuantity: number, boughtPrice: number) {
-    if (!supabase) throw new Error("Supabase não configurado.");
-
-    const { data: authData, error: authError } = await supabase.auth.getUser();
-    if (authError || !authData.user) throw new Error("Faça login para salvar operações.");
-
-    const walletId = await getOrCreateWalletId(authData.user.id);
-
-    await supabase.from("fiis").upsert({
-      name: fii.name,
-      segment: fii.segment,
-      source: fii.source ?? "market",
-      ticker: fii.ticker
-    });
-
-    const { error: transactionError } = await supabase.from("transactions").insert({
-      occurred_at: new Date().toISOString().slice(0, 10),
-      quantity: boughtQuantity,
-      ticker: fii.ticker,
-      type: "buy",
-      unit_price: boughtPrice,
-      user_id: authData.user.id,
-      wallet_id: walletId
-    });
-
-    if (transactionError) {
-      throw new Error(transactionError.message.includes("foreign key")
-        ? "Este FII ainda não existe no catálogo da base. Aplique a migration 002 para permitir cadastro automático a partir da fonte de mercado."
-        : transactionError.message);
-    }
-
-    const { data: existingPosition, error: positionError } = await supabase
-      .from("wallet_positions")
-      .select("quantity, average_price")
-      .eq("wallet_id", walletId)
-      .eq("ticker", fii.ticker)
-      .maybeSingle();
-
-    if (positionError) throw positionError;
-
-    if (!existingPosition) {
-      const { error: insertPositionError } = await supabase.from("wallet_positions").insert({
-        average_price: boughtPrice,
-        quantity: boughtQuantity,
-        ticker: fii.ticker,
-        user_id: authData.user.id,
-        wallet_id: walletId
-      });
-      if (insertPositionError) throw insertPositionError;
-      return;
-    }
-
-    const currentQuantity = Number(existingPosition.quantity ?? 0);
-    const currentAverage = Number(existingPosition.average_price ?? 0);
-    const nextQuantity = currentQuantity + boughtQuantity;
-    const nextAverage = ((currentQuantity * currentAverage) + (boughtQuantity * boughtPrice)) / nextQuantity;
-
-    const { error: updatePositionError } = await supabase
-      .from("wallet_positions")
-      .update({ average_price: nextAverage, quantity: nextQuantity })
-      .eq("wallet_id", walletId)
-      .eq("ticker", fii.ticker);
-
-    if (updatePositionError) throw updatePositionError;
-  }
-
   async function deletePosition(ticker: string) {
-    if (!supabase) return;
-
     setError(null);
-    const rpcResult = await supabase.rpc("delete_wallet_position", { p_ticker: ticker });
-    if (rpcResult.error) {
-      const { data: authData, error: authError } = await supabase.auth.getUser();
-      if (authError || !authData.user) {
-        setError("Faça login para excluir posições.");
-        return;
-      }
+    const response = await fetch(`/api/portfolio/positions/${encodeURIComponent(ticker)}`, { method: "DELETE" });
 
-      try {
-        const walletId = await getOrCreateWalletId(authData.user.id);
-        const { error: deleteError } = await supabase
-          .from("wallet_positions")
-          .delete()
-          .eq("wallet_id", walletId)
-          .eq("ticker", ticker);
-
-        if (deleteError) throw deleteError;
-      } catch (deleteError) {
-        setError(deleteError instanceof Error ? deleteError.message : "Não foi possível excluir a posição.");
-        return;
-      }
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null) as { error?: string } | null;
+      setError(payload?.error ?? "Não foi possível excluir a posição.");
+      return;
     }
 
     setDetailPosition(null);

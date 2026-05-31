@@ -21,7 +21,7 @@ import {
 import { AppShell } from "@/components/app-shell";
 
 const integrations = [
-  { name: "Supabase", detail: "Banco de dados e autenticação", status: "Preparado" },
+  { name: "PostgreSQL local", detail: "Banco de dados oficial do OpenFIIs", status: "Preparado" },
   { name: "Vercel", detail: "Deploy e preview environments", status: "Pendente" },
   { name: "GitHub", detail: "Repositório e versionamento", status: "Pendente" },
   { name: "API de mercado", detail: "Cotações e dividendos reais", status: "Não conectada" }
@@ -63,7 +63,7 @@ export default function ConfiguracoesPage() {
           <motion.article className="wallet-summary-card" initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 }}>
             <span><Database size={20} /> Dados</span>
             <strong>Mock</strong>
-            <small>Supabase preparado</small>
+            <small>PostgreSQL local</small>
           </motion.article>
           <motion.article className="wallet-summary-card" initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.15 }}>
             <span><Bell size={20} /> Alertas</span>
@@ -201,7 +201,7 @@ export default function ConfiguracoesPage() {
           <div>
             <ToggleRight size={20} />
             <strong>Preferências globais</strong>
-            <span>Configurações serão persistidas no Supabase quando a autenticação for ativada.</span>
+            <span>Configurações serão persistidas no PostgreSQL local usando a identidade do PortalAuth.</span>
           </div>
         </section>
       </main>

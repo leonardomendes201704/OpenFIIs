@@ -1,113 +1,32 @@
 "use client";
 
-import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
-import { ArrowRight, Eye, LockKeyhole, Mail, ShieldCheck, UserRound } from "lucide-react";
-import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { useEffect, useState } from "react";
+import { signIn } from "next-auth/react";
+import { ArrowRight, LockKeyhole, ShieldCheck } from "lucide-react";
 
-type AuthMode = "login" | "register";
+const errorMessages: Record<string, string> = {
+  Callback: "O PortalAuth retornou uma resposta invalida para o OpenFIIs.",
+  Configuration: "A configuracao OIDC do OpenFIIs esta incompleta.",
+  OAuthCallback: "Nao foi possivel concluir o callback do PortalAuth.",
+  OAuthSignin: "Nao foi possivel iniciar o login corporativo no PortalAuth."
+};
 
 export default function LoginPage() {
-  const router = useRouter();
-  const [mode, setMode] = useState<AuthMode>("login");
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError("");
-    setSuccess("");
-    setIsSubmitting(true);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const errorParam = params.get("error");
 
-    try {
-      if (mode === "register") {
-        await handleRegister();
-        return;
-      }
-
-      await handleLogin();
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
-  async function handleLogin() {
-    if (!supabase) {
-      setError("Supabase não está configurado. Configure o .env.local para entrar.");
+    if (errorParam) {
+      setError(errorMessages[errorParam] ?? "Nao foi possivel iniciar o login corporativo.");
       return;
     }
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
-
-    if (signInError) {
-      setError(signInError.message);
-      return;
-    }
-
-    completeLogin();
-  }
-
-  async function handleRegister() {
-    if (!supabase) {
-      setError("Supabase não está configurado. Configure o .env.local para criar usuários reais.");
-      return;
-    }
-
-    if (password.length < 6) {
-      setError("A senha precisa ter pelo menos 6 caracteres.");
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setError("A confirmação de senha não confere.");
-      return;
-    }
-
-    const { data, error: signUpError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: name
-        }
-      }
-    });
-
-    if (signUpError) {
-      setError(signUpError.message);
-      return;
-    }
-
-    if (data.session) {
-      if (data.user?.id) {
-        await supabase.from("profiles").upsert({
-          full_name: name,
-          id: data.user.id,
-          investor_profile: "moderado"
-        });
-      }
-
-      completeLogin();
-      return;
-    }
-
-    setSuccess("Cadastro criado. Verifique seu e-mail para confirmar a conta antes de entrar.");
-    setMode("login");
-  }
-
-  function completeLogin() {
-    const nextPath = new URLSearchParams(window.location.search).get("next") || "/";
-    router.push(nextPath);
-    router.refresh();
-  }
+    const nextPath = params.get("next");
+    const callbackUrl = nextPath?.startsWith("/") ? nextPath : "/";
+    void signIn("portalauth", { callbackUrl });
+  }, []);
 
   return (
     <main className="login-page">
@@ -121,81 +40,32 @@ export default function LoginPage() {
           <strong>OpenFIIs</strong>
         </div>
         <div>
-          <h1>{mode === "login" ? "Entre no portal" : "Crie sua conta"}</h1>
-          <p>Acompanhe carteira, dividendos, projeções e relatórios em um painel financeiro único.</p>
+          <h1>Login corporativo</h1>
+          <p>O acesso ao OpenFIIs e feito exclusivamente pelo PortalAuth.</p>
         </div>
         <div className="login-proof-list">
-          <span><ShieldCheck size={18} /> Cadastro real via Supabase Auth</span>
-          <span><LockKeyhole size={18} /> Rotas do portal protegidas por sessão</span>
+          <span><ShieldCheck size={18} /> Identidade centralizada no PortalAuth</span>
+          <span><LockKeyhole size={18} /> Sessao local protegida por cookie HttpOnly</span>
         </div>
       </section>
 
-      <section className="login-card" aria-label={mode === "login" ? "Login" : "Cadastro"}>
-        <div className="login-mode-tabs">
-          <button className={mode === "login" ? "active" : ""} onClick={() => setMode("login")} type="button">Entrar</button>
-          <button className={mode === "register" ? "active" : ""} onClick={() => setMode("register")} type="button">Criar conta</button>
-        </div>
-
+      <section className="login-card" aria-label="Login corporativo">
         <div className="login-card-header">
-          <span>{mode === "login" ? "Perfil Investidor" : "Novo usuário"}</span>
-          <h2>{mode === "login" ? "Acessar conta" : "Cadastrar acesso"}</h2>
-          <p>
-            {mode === "login"
-              ? "Entre com seu e-mail e senha cadastrados no Supabase."
-              : "Crie um usuário com nome, e-mail e senha para acessar o portal."}
-          </p>
+          <span>SSO PortalAuth</span>
+          <h2>Redirecionando...</h2>
+          <p>Se o redirecionamento nao iniciar automaticamente, use o botao abaixo.</p>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          {mode === "register" && (
-            <label>
-              Nome
-              <div className="login-input">
-                <UserRound size={18} />
-                <input value={name} onChange={(event) => setName(event.target.value)} type="text" />
-              </div>
-            </label>
-          )}
+        {error && <strong className="login-error">{error}</strong>}
 
-          <label>
-            E-mail
-            <div className="login-input">
-              <Mail size={18} />
-              <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" />
-            </div>
-          </label>
-
-          <label>
-            Senha
-            <div className="login-input">
-              <LockKeyhole size={18} />
-              <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" />
-              <Eye size={18} />
-            </div>
-          </label>
-
-          {mode === "register" && (
-            <label>
-              Confirmar senha
-              <div className="login-input">
-                <LockKeyhole size={18} />
-                <input value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} type="password" />
-              </div>
-            </label>
-          )}
-
-          {error && <strong className="login-error">{error}</strong>}
-          {success && <strong className="login-success">{success}</strong>}
-
-          <button className="login-submit" disabled={isSubmitting} type="submit">
-            {isSubmitting ? "Processando..." : mode === "login" ? "Entrar no portal" : "Criar conta"}
-            <ArrowRight size={18} />
-          </button>
-        </form>
+        <button className="login-submit" onClick={() => signIn("portalauth", { callbackUrl: "/" })} type="button">
+          Entrar com PortalAuth
+          <ArrowRight size={18} />
+        </button>
 
         <div className="login-meta">
-          <span>{isSupabaseConfigured ? "Supabase configurado" : "Supabase não configurado"}</span>
-          <strong>Autenticação real por e-mail e senha</strong>
+          <span>PostgreSQL local como banco oficial</span>
+          <strong>Autenticacao corporativa via OpenID Connect</strong>
         </div>
       </section>
     </main>

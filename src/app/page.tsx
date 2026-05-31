@@ -29,7 +29,6 @@ import { AppShell } from "@/components/app-shell";
 import { ChartFrame } from "@/components/chart-frame";
 import { InfoDialogButton } from "@/components/info-dialog-button";
 import { buildProjection, ProjectionScenario } from "@/lib/projections";
-import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 type MarketFii = {
   dividendYield12m?: number;
@@ -88,6 +87,13 @@ type TransactionRow = {
   ticker: string;
   type: string;
   unit_price: number;
+};
+
+type PositionRow = {
+  average_price: number;
+  fiis?: { name?: string; segment?: string } | { name?: string; segment?: string }[] | null;
+  quantity: number;
+  ticker: string;
 };
 
 const money = new Intl.NumberFormat("pt-BR", {
@@ -227,44 +233,26 @@ export default function DashboardPage() {
   }, []);
 
   async function loadDashboard() {
-    if (!isSupabaseConfigured || !supabase) {
-      setError("Supabase não está configurado para carregar o dashboard.");
-      return;
-    }
-
     setError(null);
 
-    const { data: authData, error: authError } = await supabase.auth.getUser();
-    if (authError || !authData.user) {
-      setError("Faça login para visualizar os dados reais do dashboard.");
+    const response = await fetch("/api/portfolio");
+    const payload = await response.json() as {
+      data?: {
+        positions: PositionRow[];
+        transactions: TransactionRow[];
+      };
+      error?: string;
+    };
+
+    if (!response.ok || !payload.data) {
+      setError(payload.error ?? "Não foi possível carregar os dados reais do dashboard.");
       return;
     }
 
-    const { data: walletId, error: walletError } = await supabase.rpc("get_or_create_default_wallet");
-    if (walletError || !walletId) {
-      setError(walletError?.message ?? "Não foi possível carregar a carteira do dashboard.");
-      return;
-    }
+    const positionRows = payload.data.positions;
+    const transactions = payload.data.transactions;
 
-    const [{ data: positionRows, error: positionsError }, { data: transactions, error: transactionsError }] = await Promise.all([
-      supabase
-        .from("wallet_positions")
-        .select("ticker, quantity, average_price, fiis(name, segment)")
-        .eq("wallet_id", walletId)
-        .order("ticker"),
-      supabase
-        .from("transactions")
-        .select("ticker, type, occurred_at, unit_price, gross_amount")
-        .eq("wallet_id", walletId)
-        .order("occurred_at", { ascending: true })
-    ]);
-
-    if (positionsError || transactionsError) {
-      setError(positionsError?.message ?? transactionsError?.message ?? "Não foi possível carregar os dados reais do dashboard.");
-      return;
-    }
-
-    const tickers = (positionRows ?? []).map((row) => String(row.ticker));
+    const tickers = positionRows.map((row) => String(row.ticker));
     const marketRows = await Promise.all(tickers.map(async (ticker) => [ticker, await fetchMarketFii(ticker)] as const));
     const marketByTicker = new Map(marketRows);
     const marketFallback = marketRows.some(([, market]) => !market?.lastPrice);

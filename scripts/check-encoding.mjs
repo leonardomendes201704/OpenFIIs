@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-const roots = ["src", "supabase"];
+const roots = ["src", "prisma"];
 const extensions = new Set([".css", ".sql", ".ts", ".tsx"]);
 const mojibakePattern = /\u00c3|\u00c2|\u00e2\u20ac|\u00e2\u20ac\u00a2|\u00e2\u0152|\ufffd/u;
 const suspiciousQuestionPattern = /[A-Za-zÀ-ÿ]\?{1,2}[A-Za-zÀ-ÿ]/u;
